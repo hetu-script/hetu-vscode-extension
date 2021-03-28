@@ -1,0 +1,25 @@
+{
+    "name": "hetu",
+    "displayName": "hetu",
+    "description": "VSCode extension for Hetu script language.",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.54.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "hetu",
+            "aliases": ["hetu", "hetu"],
+            "extensions": [".ht"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "hetu",
+            "scopeName": "source.hetu",
+            "path": "./syntaxes/hetu.tmLanguage.json"
+        }]
+    }
+}
