@@ -1,28 +1,25 @@
 {
-  "name": "hetu_script_extension",
-  "version": "0.0.1",
-  "description": "Hetu script language extension",
-  "main": "index.js",
-  "scripts": {
-    "test": "test"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hetu-script/hetu-vscode-extension.git"
-  },
-  "keywords": [
-    "hetu",
-    "dart",
-    "flutter",
-    "script",
-    "language",
-    "extension",
-    "vscode"
-  ],
-  "author": "chengfubeiming@live.com",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/hetu-script/hetu-vscode-extension/issues"
-  },
-  "homepage": "https://github.com/hetu-script/hetu-vscode-extension#readme"
+    "name": "hetu",
+    "displayName": "HetuScript",
+    "description": "VSCode extension for Hetu script language.",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.54.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "hetu",
+            "aliases": ["HetuScript", "hetu"],
+            "extensions": [".ht"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "hetu",
+            "scopeName": "source.hetu",
+            "path": "./syntaxes/hetu.tmLanguage.json"
+        }]
+    }
 }
