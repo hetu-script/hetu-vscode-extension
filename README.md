@@ -9,7 +9,7 @@ Homepage:
 
 ## Features
 
-- Provide highlight for hetu script code.
+- Syntax highlight.
 
 ## Requirements
 

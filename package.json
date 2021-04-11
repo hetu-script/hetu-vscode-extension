@@ -1,31 +1,42 @@
 {
-    "name": "hetu",
-    "displayName": "HetuScript",
-    "description": "VSCode extension for Hetu script language.",
-    "version": "0.0.1",
-    "publisher": "hetu-script",
-    "homepage": "https://hetu.dev",
-    "engines": {
-        "vscode": "^1.54.0"
-    },
-    "categories": [
-        "Programming Languages"
+  "name": "hetu",
+  "displayName": "HetuScript",
+  "description": "VSCode extension for Hetu script language.",
+  "version": "0.0.1+1",
+  "publisher": "hetu-script",
+  "homepage": "https://hetu.dev",
+  "icon": "./media/image/hetu-logo-large.png",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.54.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "hetu",
+        "aliases": [
+          "HetuScript",
+          "hetu"
+        ],
+        "extensions": [
+          ".ht"
+        ],
+        "configuration": "./syntaxes/hetu.language.configuration.json"
+      }
     ],
-    "contributes": {
-        "languages": [{
-            "id": "hetu",
-            "aliases": ["HetuScript", "hetu"],
-            "extensions": [".ht"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "hetu",
-            "scopeName": "source.hetu",
-            "path": "./syntaxes/hetu.tmLanguage.json"
-        }]
-    },
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/hetu-script/hetu-vscode-extension"
-    }
+    "grammars": [
+      {
+        "language": "hetu",
+        "scopeName": "source.hetu",
+        "path": "./syntaxes/hetu.tmLanguage.json"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hetu-script/hetu-vscode-extension"
+  }
 }
