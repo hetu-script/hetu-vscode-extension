@@ -30,4 +30,4 @@ None.
 
 ### 0.0.1
 
-Initial release of HetuScript vscode extension
+Initial release.
