@@ -1,31 +1,79 @@
 {
-    "name": "hetu",
-    "displayName": "HetuScript",
-    "description": "VSCode extension for Hetu script language.",
-    "version": "0.0.1",
-    "publisher": "hetu-script",
-    "homepage": "https://hetu.dev",
-    "engines": {
-        "vscode": "^1.54.0"
-    },
-    "categories": [
-        "Programming Languages"
+  "name": "hetuscript",
+  "displayName": "HetuScript",
+  "description": "VSCode extension for Hetu script language.",
+  "version": "0.0.1-1.0dev",
+  "icon": "image/hetu-logo-large.png",
+  "publisher": "hetu-script",
+  "homepage": "https://hetu.dev",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.54.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Debuggers",
+    "Formatters"
+  ],
+  "keywords": [
+    "hetu",
+    "script",
+    "dart",
+    "flutter",
+    "embedded"
+  ],
+  "activationEvents": [
+    "onLanguage:hetu",
+    "workspaceContains:**/*.ht",
+    "onCommand:hetu.createProject",
+    "onCommand:hetu.createProject.package"
+  ],
+  "main": "./dist/extension",
+  "contributes": {
+    "languages": [
+      {
+        "id": "hetu",
+        "aliases": [
+          "HetuScript",
+          "hetu"
+        ],
+        "extensions": [
+          ".ht"
+        ],
+        "configuration": "./syntaxes/hetu.language.configuration.json"
+      }
     ],
-    "contributes": {
-        "languages": [{
-            "id": "hetu",
-            "aliases": ["HetuScript", "hetu"],
-            "extensions": [".ht"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "hetu",
-            "scopeName": "source.hetu",
-            "path": "./syntaxes/hetu.tmLanguage.json"
-        }]
-    },
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/hetu-script/hetu-vscode-extension"
-    }
+    "grammars": [
+      {
+        "language": "hetu",
+        "scopeName": "source.hetu",
+        "path": "./syntaxes/hetu.tmLanguage.json"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hetu-script/hetu-vscode-extension"
+  },
+  "scripts": {
+    "build": "webpack --mode development",
+    "dev": "webpack --mode development --watch"
+  },
+  "dependencies": {
+    "semver": "^7.3.5",
+    "vscode": "^1.1.37",
+    "vscode-debugadapter": "^1.46.0",
+    "vscode-debugprotocol": "^1.46.0",
+    "vscode-languageclient": "^7.0.0",
+    "ws": "^7.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^14.14.37",
+    "@types/semver": "^7.3.4",
+    "@types/ws": "^7.4.1",
+    "ts-loader": "^8.1.0",
+    "webpack": "^5.31.2",
+    "webpack-cli": "^4.6.0"
+  }
 }

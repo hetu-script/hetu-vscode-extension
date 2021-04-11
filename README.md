@@ -19,10 +19,7 @@ None.
 
 This extension contributes the following settings:
 
-None.
-
-<!-- * `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something -->
+<!-- * `hetu.enable`: Enable/disable this extension -->
 
 ## Known Issues
 

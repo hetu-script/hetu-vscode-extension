@@ -138,7 +138,7 @@
 		},
     "function-declaration": {
 			"name": "meta.function.hetu",
-			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(fun\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
+			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(fun|construct|get|set|async\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
 			"beginCaptures": {
 				"1": {
 					"name": "storage.type.function.hetu"
@@ -896,7 +896,7 @@
     "function-name": {
       "patterns": [
         {
-					"name": "entity.name.function.hetu",
+		  "name": "entity.name.function.hetu",
           "match": "[_$[:lower:]][_$[:alnum:]]*"
         }
       ]
@@ -926,7 +926,7 @@
 			"patterns": [
 				{
 					"name": "meta.return.type.hetu",
-					"begin": "(?<=\\))\\s*(->)(?=\\s*\\S)",
+					"begin": "\\s*(->)(?=\\s*\\S)",
 					"beginCaptures": {
 						"1": {
 							"name": "keyword.operator.type.annotation.hetu"
