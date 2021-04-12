@@ -64,13 +64,6 @@
   },
   "dependencies": {
     "semver": "^7.3.5",
-<<<<<<< HEAD
-=======
-    "vscode": "^1.1.37",
-    "vscode-debugadapter": "^1.46.0",
-    "vscode-debugprotocol": "^1.46.0",
-    "vscode-languageclient": "^7.0.0",
->>>>>>> wip: lsp
     "ws": "^7.4.4"
   },
   "devDependencies": {
@@ -78,7 +71,6 @@
     "@types/semver": "^7.3.4",
     "@types/ws": "^7.4.1",
     "ts-loader": "^8.1.0",
-<<<<<<< HEAD
     "vscode": "^1.1.37",
     "vscode-debugadapter": "^1.46.0",
     "vscode-debugprotocol": "^1.46.0",
@@ -87,9 +79,3 @@
     "webpack-cli": "^4.6.0"
   }
 }
-=======
-    "webpack": "^5.31.2",
-    "webpack-cli": "^4.6.0"
-  }
-}
->>>>>>> wip: lsp

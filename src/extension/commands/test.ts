@@ -10,7 +10,6 @@ import { TestOutlineInfo, TestOutlineVisitor } from "../../shared/utils/outline_
 import { LspTestOutlineInfo, LspTestOutlineVisitor } from "../../shared/utils/outline_lsp";
 import { createTestFileAction, defaultTestFileContents, getLaunchConfig } from "../../shared/utils/test";
 import { WorkspaceContext } from "../../shared/workspace";
-import { DasFileTracker } from "../analysis/file_tracker_das";
 import { LspFileTracker } from "../analysis/file_tracker_lsp";
 import { isDartDocument } from "../editors";
 import { isInsideFlutterProject, isTestFile } from "../utils";
@@ -175,37 +174,6 @@ abstract class TestCommands implements vs.Disposable {
 			command.dispose();
 	}
 
-}
-
-export class DasTestCommands extends TestCommands {
-	constructor(logger: Logger, wsContext: WorkspaceContext, private readonly fileTracker: DasFileTracker, flutterCapabilities: FlutterCapabilities) {
-		super(logger, wsContext, flutterCapabilities);
-	}
-
-	protected testForCursor(editor: vs.TextEditor): TestOutlineInfo | undefined {
-		const document = editor.document;
-		const outline = this.fileTracker.getOutlineFor(document.uri);
-		if (!outline || !outline.children || !outline.children.length)
-			return;
-
-		// We should only allow running for projects we know can actually handle `pub run` (for ex. the
-		// SDK codebase cannot, and will therefore run all tests).
-		if (!this.fileTracker.supportsPubRunTest(document.uri))
-			return;
-
-		const visitor = new TestOutlineVisitor(this.logger);
-		visitor.visit(outline);
-		return visitor.tests.reverse().find((t) => {
-			let start = document.positionAt(t.offset);
-			let end = document.positionAt(t.offset + t.length);
-
-			// Widen the range to start/end of lines.
-			start = document.lineAt(start.line).rangeIncludingLineBreak.start;
-			end = document.lineAt(end.line).rangeIncludingLineBreak.end;
-
-			return new vs.Range(start, end).contains(editor.selection);
-		});
-	}
 }
 
 export class LspTestCommands extends TestCommands {

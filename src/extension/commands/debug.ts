@@ -4,7 +4,7 @@ import * as vs from "vscode";
 import { FlutterCapabilities } from "../../shared/capabilities/flutter";
 import { devToolsPages, doNotAskAgainAction, isInFlutterDebugModeDebugSessionContext, isInFlutterProfileModeDebugSessionContext, widgetInspectorPage } from "../../shared/constants";
 import { DebuggerType, DebugOption, debugOptionNames, LogSeverity, VmServiceExtension } from "../../shared/enums";
-import { DartWorkspaceContext, DevToolsPage, Logger, LogMessage, WidgetErrorInspectData } from "../../shared/interfaces";
+import { DartWorkspaceContext, DevToolsPage, Logger, LogMessage } from "../../shared/interfaces";
 import { PromiseCompleter } from "../../shared/utils";
 import { fsPath } from "../../shared/utils/fs";
 import { showDevToolsNotificationIfAppropriate } from "../../shared/vscode/user_prompts";
@@ -490,7 +490,7 @@ export class DebugCommands {
 		} else if (e.event === "dart.exposeUrl") {
 			const originalUrl = e.body.url as string;
 			try {
-				const exposedUrl = await envUtils.exposeUrl(vs.Uri.parse(originalUrl, true), this.logger);
+				const exposedUrl = await envUtils.exposeUrl(vs.Uri.parse(originalUrl), this.logger);
 				session.session.customRequest("exposeUrlResponse", { originalUrl, exposedUrl });
 			} catch (e) {
 				this.logger.error(`Failed to expose URL ${originalUrl}: ${e}`);
@@ -551,34 +551,6 @@ export class DebugCommands {
 				await new Promise((resolve) => setTimeout(resolve, 400));
 			}
 			session.progress[e.body.progressID]?.complete();
-		} else if (e.event === "dart.flutter.widgetErrorInspectData") {
-			if (this.suppressFlutterWidgetErrors || !config.showInspectorNotificationsForWidgetErrors)
-				return;
-
-			const data = e.body as WidgetErrorInspectData;
-			if (data.devToolsUrl !== (await this.devTools.devtoolsUrl))
-				return;
-
-			// To avoid spam, when we show this dialog we will set a flag that prevents any more
-			// of these types of dialogs until it is dismissed or 5 seconds have passed.
-			this.suppressFlutterWidgetErrors = true;
-			const timer = setTimeout(() => this.suppressFlutterWidgetErrors = false, 5000);
-
-			const inspectAction = `Inspect Widget`;
-			const choice = await vs.window.showWarningMessage(data.errorDescription, inspectAction, doNotAskAgainAction);
-			if (choice === inspectAction && session.vmServiceUri) {
-				this.devTools.spawnForSession(
-					session as DartDebugSessionInformation & { vmServiceUri: string },
-					{
-						inspectorRef: data.inspectorReference,
-						page: widgetInspectorPage,
-					},
-				);
-			} else if (choice === doNotAskAgainAction) {
-				config.setShowInspectorNotificationsForWidgetErrors(false);
-			}
-			clearTimeout(timer);
-			this.suppressFlutterWidgetErrors = false;
 		}
 	}
 
