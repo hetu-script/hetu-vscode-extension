@@ -121,24 +121,15 @@ const logger = new EmittingLogger();
 export const ringLog: RingLog = new RingLog(200);
 
 export async function activate(context: vs.ExtensionContext, isRestart: boolean = false) {
-  // Ring logger is only set up once and presist over silent restarts.
-  if (!ringLogger)
-    ringLogger = logger.onLog((message) => ringLog.log(message.toLine(500)));
 
-  if (isDevExtension)
-    context.subscriptions.push(logToConsole(logger));
-
-  vs.commands.executeCommand("setContext", IS_RUNNING_LOCALLY_CONTEXT, isRunningLocally);
-  buildLogHeaders();
-  setupLog(getExtensionLogPath(), LogCategory.General);
+  // context.subscriptions.push(logToConsole(logger));
 
   const extContext = Context.for(context);
-  const webClient = new WebClient(extensionVersion);
 
-  util.logTime("Code called activate");
+  // util.logTime("Code called activate");
 
   // Wire up a reload command that will re-initialise everything.
-  context.subscriptions.push(vs.commands.registerCommand("_dart.reloadExtension", async () => {
+  context.subscriptions.push(vs.commands.registerCommand("_hetu.reloadExtension", async () => {
     logger.info("Performing silent extension reload...");
     await deactivate(true);
     disposeAll(context.subscriptions);
@@ -146,19 +137,16 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
     logger.info("Done!");
   }));
 
-  showTodos = config.showTodos;
-  previousSettings = getSettingsThatRequireRestart();
+  // previousSettings = getSettingsThatRequireRestart();
 
-  const extensionStartTime = new Date();
-  util.logTime();
+  // const extensionStartTime = new Date();
+  // util.logTime();
   const sdkUtils = new SdkUtils(logger);
   const workspaceContextUnverified = await sdkUtils.scanWorkspace();
-  util.logTime("initWorkspace");
+  // util.logTime("initWorkspace");
 
   // Set up log files.
-  setupLog(config.analyzerLogFile, LogCategory.Analyzer);
-  setupLog(config.flutterDaemonLogFile, LogCategory.FlutterDaemon);
-  setupLog(config.devToolsLogFile, LogCategory.DevTools);
+  // setupLog(config.analyzerLogFile, LogCategory.Analyzer);
 
   analytics = new Analytics(logger, workspaceContextUnverified);
   if (!workspaceContextUnverified.sdks.dart || (workspaceContextUnverified.hasAnyFlutterProjects && !workspaceContextUnverified.sdks.flutter)) {
@@ -170,42 +158,21 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   const sdks = workspaceContext.sdks;
   const writableConfig = workspaceContext.config as WritableWorkspaceConfig;
 
-  if (sdks.dartVersion) {
-    dartCapabilities.version = sdks.dartVersion;
-    analytics.sdkVersion = sdks.dartVersion;
-    // tslint:disable-next-line: no-floating-promises
-    checkForStandardDartSdkUpdates(logger, workspaceContext);
-  }
-
-  if (sdks.flutterVersion) {
-    flutterCapabilities.version = sdks.flutterVersion;
-    analytics.flutterSdkVersion = sdks.flutterVersion;
-
-    // If we're going to pass the DevTools URL to Flutter, we need to eagerly start it
-    // so it's already running.
-    if (workspaceContext.hasAnyFlutterProjects && config.shareDevToolsWithFlutter && flutterCapabilities.supportsDevToolsServerAddress) {
-      writableConfig.startDevToolsServerEagerly = true;
-    }
-  }
-
-  const isUsingLsp = !!process.env.DART_CODE_FORCE_LSP
-    || (config.previewLsp ?? (dartCapabilities.canDefaultLsp && vsCodeVersion.supportsLatestLspClient));
-  writableConfig.useLsp = isUsingLsp;
-  vs.commands.executeCommand("setContext", IS_LSP_CONTEXT, isUsingLsp);
+  // if (sdks.dartVersion) {
+  //   dartCapabilities.version = sdks.dartVersion;
+  //   analytics.sdkVersion = sdks.dartVersion;
+  //   // tslint:disable-next-line: no-floating-promises
+  //   checkForStandardDartSdkUpdates(logger, workspaceContext);
+  // }
 
   // Build log headers now we know analyzer type.
   buildLogHeaders(logger, workspaceContextUnverified);
 
   // Show the SDK version in the status bar.
-  if (sdks.dartVersion)
-    context.subscriptions.push(new StatusBarVersionTracker(workspaceContext, isUsingLsp));
+  if (sdks.version)
+    context.subscriptions.push(new StatusBarVersionTracker(workspaceContext, true));
 
   vs.commands.executeCommand("setContext", PUB_OUTDATED_SUPPORTED_CONTEXT, dartCapabilities.supportsPubOutdated);
-
-  const pubApi = new PubApi(webClient);
-  const pubGlobal = new PubGlobal(logger, extContext, sdks, pubApi);
-  const sdkCommands = new SdkCommands(logger, extContext, workspaceContext, sdkUtils, pubGlobal, dartCapabilities, flutterCapabilities, deviceManager);
-  const debugCommands = new DebugCommands(logger, extContext, workspaceContext, flutterCapabilities, analytics, pubGlobal);
 
   // Handle new projects before creating the analyer to avoid a few issues with
   // showing errors while packages are fetched, plus issues like
@@ -217,11 +184,8 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   // Fire up the analyzer process.
   const analyzerStartTime = new Date();
 
-  analyzer = isUsingLsp ? new LspAnalyzer(logger, sdks, dartCapabilities, workspaceContext) : new DasAnalyzer(logger, analytics, sdks, dartCapabilities, workspaceContext);
-  const lspAnalyzer = isUsingLsp ? (analyzer as LspAnalyzer) : undefined;
-  const dasAnalyzer = isUsingLsp ? undefined : (analyzer as DasAnalyzer);
-  const dasClient = dasAnalyzer ? dasAnalyzer.client : undefined;
-  const lspClient = dasClient ? undefined : (analyzer as LspAnalyzer).client;
+  analyzer = new LspAnalyzer(logger, sdks, dartCapabilities, workspaceContext);
+  const lspClient = (analyzer as LspAnalyzer).client;
   context.subscriptions.push(analyzer);
 
   // tslint:disable-next-line: no-floating-promises
