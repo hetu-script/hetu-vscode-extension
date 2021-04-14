@@ -7,19 +7,11 @@ import { UnknownResponse } from "./services/interfaces";
 import { WorkspaceContext } from "./workspace";
 
 export interface Sdks {
-	readonly dart?: string;
-	readonly dartVersion?: string;
-	readonly flutter?: string;
-	readonly flutterVersion?: string;
-	readonly dartSdkIsFromFlutter: boolean;
-}
-
-export interface DartSdks extends Sdks {
-	readonly dart: string;
+	readonly version?: string;
 }
 
 export interface DartWorkspaceContext extends WorkspaceContext {
-	readonly sdks: DartSdks;
+	readonly sdks: Sdks;
 }
 
 export interface WritableWorkspaceConfig {

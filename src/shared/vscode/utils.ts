@@ -20,8 +20,7 @@ const dartExtension = extensions.getExtension(dartCodeExtensionIdentifier);
 export const isRunningLocally =
 	// Some cloud IDEs mis-report the extension kind, so if we _know_ something is a cloud IDE,
 	// override that.
-	!isKnownCloudIde
-	&& (!dartExtension || dartExtension.extensionKind === ExtensionKind.UI);
+	!isKnownCloudIde && (!dartExtension);
 
 export function getDartWorkspaceFolders(): WorkspaceFolder[] {
 	if (!workspace.workspaceFolders)
