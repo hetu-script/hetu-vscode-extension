@@ -223,13 +223,7 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
 
   // Set up commands for Dart editors.
   context.subscriptions.push(new EditCommands());
-  if (dasClient && dasAnalyzer) {
-    context.subscriptions.push(new DasEditCommands(logger, context, dasClient));
-    context.subscriptions.push(new TypeHierarchyCommand(logger, dasClient));
-    context.subscriptions.push(new GoToSuperCommand(dasAnalyzer));
-  } else if (lspClient && lspAnalyzer) {
-    context.subscriptions.push(new LspEditCommands(lspAnalyzer));
-  }
+  context.subscriptions.push(new LspEditCommands(lspAnalyzer));
 
   // Register our view providers.
   const dartPackagesProvider = new DartPackagesProvider(logger, workspaceContext);
@@ -237,8 +231,7 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   context.subscriptions.push(
     packagesTreeView,
   );
-  if (lspAnalyzer)
-    context.subscriptions.push(new TestDiscoverer(logger, lspAnalyzer.fileTracker, testTreeModel));
+  context.subscriptions.push(new TestDiscoverer(logger, lspAnalyzer.fileTracker, testTreeModel));
   const testTreeProvider = new TestResultsProvider(testTreeModel, testCoordinator, flutterCapabilities);
   const testTreeView = vs.window.createTreeView("dartTestTree", { treeDataProvider: testTreeProvider });
   const tryReveal = async (node: TreeNode) => {
