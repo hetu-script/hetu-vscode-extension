@@ -20,6 +20,9 @@
         },
         {
           "include": "#punctuation-semicolon"
+        },
+        {
+          "include": "#function-decl-block"
         }
       ]
     },
@@ -138,12 +141,18 @@
     },
     "function-declaration": {
       "name": "meta.function.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(fun\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(fun|get|set|construct\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
       "beginCaptures": {
         "1": {
-          "name": "storage.type.function.hetu"
+          "name": "storage.modifier.hetu"
         },
         "2": {
+          "name": "storage.modifier.hetu"
+        },
+        "3": {
+          "name": "storage.type.function.hetu"
+        },
+        "4": {
           "name": "meta.definition.function.hetu entity.name.function.hetu"
         }
       },
@@ -334,13 +343,19 @@
     },
     "variable-declaration": {
       "name": "meta.var.expr.hetu",
-      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\b(var|let|const)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
-      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\b(var|let|const)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(of|in)\\s+)|;|^\\s*$|(?:^\\s*(?:abstract|async|class|const|enum|export|fun|import|let|return|var)\\b))|((?<!^let|[^\\._$[:alnum:]]let|^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
+      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|let|const\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
+      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|let|const\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(of|in)\\s+)|;|^\\s*$|(?:^\\s*(?:abstract|async|class|const|enum|export|fun|import|let|return|var)\\b))|((?<!^let|[^\\._$[:alnum:]]let|^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
       "patterns": [
         {
-          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\b(var|let|const)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|let|const\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
           "beginCaptures": {
             "1": {
+              "name": "storage.modifier.hetu"
+            },
+            "2": {
+              "name": "storage.modifier.hetu"
+            },
+            "3": {
               "name": "storage.type.hetu"
             }
           },
@@ -495,16 +510,16 @@
           "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(if)\\s*(\\()",
           "beginCaptures": {
             "1": {
-              "name": "keyword.control.conditional.ts"
+              "name": "keyword.control.conditional.hetu"
             },
             "2": {
-              "name": "meta.brace.round.ts"
+              "name": "meta.brace.round.hetu"
             }
           },
           "end": "\\)",
           "endCaptures": {
             "0": {
-              "name": "meta.brace.round.ts"
+              "name": "meta.brace.round.hetu"
             }
           },
           "patterns": [
@@ -522,7 +537,7 @@
       "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))for(?=\\s*(\\/\\*([^\\*]|(\\*[^\\/]))*\\*\\/\\s*)?(\\())",
       "beginCaptures": {
         "0": {
-          "name": "keyword.control.loop.ts"
+          "name": "keyword.control.loop.hetu"
         }
       },
       "end": "(?<=\\))",
@@ -531,13 +546,13 @@
           "begin": "\\(",
           "beginCaptures": {
             "0": {
-              "name": "meta.brace.round.ts"
+              "name": "meta.brace.round.hetu"
             }
           },
           "end": "\\)",
           "endCaptures": {
             "0": {
-              "name": "meta.brace.round.ts"
+              "name": "meta.brace.round.hetu"
             }
           },
           "patterns": [
@@ -884,7 +899,7 @@
       "patterns": [
         {
           "name": "entity.name.type.class.hetu",
-          "match": "[_$[:upper:]][_$[:alnum:]]*"
+          "match": "[[:upper:]+][_$[:alnum:]]*"
         }
       ]
     },
@@ -929,7 +944,7 @@
       "patterns": [
         {
           "name": "meta.return.type.hetu",
-          "begin": "(?<=\\))\\s*(->)(?=\\s*\\S)",
+          "begin": "(->)(?=\\s*\\S)",
           "beginCaptures": {
             "1": {
               "name": "keyword.operator.type.annotation.hetu"

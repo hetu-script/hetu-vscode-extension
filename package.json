@@ -1,8 +1,8 @@
 {
   "name": "hetuscript",
   "displayName": "HetuScript",
-  "description": "VSCode extension for Hetu script language.",
-  "version": "0.0.2",
+  "description": "VSCode extension for Hetu Script Language.",
+  "version": "0.0.3",
   "icon": "media/image/hetu-logo-large.png",
   "publisher": "hetu-script",
   "homepage": "https://hetu.dev",
@@ -15,25 +15,20 @@
   ],
   "keywords": [
     "hetu",
-    "script",
     "dart",
     "flutter",
+    "script",
     "embedded"
   ],
-  "activationEvents": [
-    "onLanguage:hetu",
-    "workspaceContains:**/*.ht",
-    "onCommand:hetu.createProject",
-    "onCommand:hetu.createProject.package"
-  ],
-  "main": "./dist/extension",
   "contributes": {
     "languages": [
       {
         "id": "hetu",
         "aliases": [
+          "hetu",
           "HetuScript",
-          "hetu"
+          "hetu-script",
+          "hetuscript"
         ],
         "extensions": [
           ".ht"
