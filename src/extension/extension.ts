@@ -471,7 +471,11 @@ function recalculateAnalysisRoots() {
   });
 
   // tslint:disable-next-line: no-floating-promises
+<<<<<<< HEAD
   (lspAnalyzer as DasAnalyzer).client.analysisSetAnalysisRoots({
+=======
+  (analyzer as DasAnalyzer).client.analysisSetAnalysisRoots({
+>>>>>>> 874c55dcbc1fb0ebb395469335e1c7dca6680bdb
     excluded: excludeFolders,
     included: analysisRoots,
   });
@@ -488,9 +492,15 @@ function handleConfigurationChange(sdks: Sdks) {
   const settingsChanged = previousSettings !== newSettings;
   previousSettings = newSettings;
 
+<<<<<<< HEAD
   if (todoSettingChanged && lspAnalyzer instanceof DasAnalyzer) {
     // tslint:disable-next-line: no-floating-promises
     lspAnalyzer.client.analysisReanalyze();
+=======
+  if (todoSettingChanged && analyzer instanceof DasAnalyzer) {
+    // tslint:disable-next-line: no-floating-promises
+    analyzer.client.analysisReanalyze();
+>>>>>>> 874c55dcbc1fb0ebb395469335e1c7dca6680bdb
   }
 
   if (settingsChanged) {
@@ -533,7 +543,11 @@ function getSettingsThatRequireRestart() {
 
 export async function deactivate(isRestart: boolean = false): Promise<void> {
   setCommandVisiblity(false);
+<<<<<<< HEAD
   lspAnalyzer?.dispose();
+=======
+  analyzer?.dispose();
+>>>>>>> 874c55dcbc1fb0ebb395469335e1c7dca6680bdb
   if (loggers) {
     await Promise.all(loggers.map((logger) => logger.dispose()));
     loggers.length = 0;

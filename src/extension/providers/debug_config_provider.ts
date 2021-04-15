@@ -246,12 +246,6 @@ export class DebugConfigProvider implements DebugConfigurationProvider {
 		if (token && token.isCancellationRequested)
 			return;
 
-		if (token && token.isCancellationRequested)
-			return;
-			
-		if (token && token.isCancellationRequested)
-			return;
-
 		// TODO: This cast feels nasty?
 		await this.setupDebugConfig(folder, debugConfig as any as FlutterLaunchRequestArguments, isFlutter, isAttachRequest, isTest, deviceToLaunchOn, this.deviceManager);
 

@@ -102,7 +102,6 @@ export class DebugCommands {
 				return vs.commands.executeCommand("dart.openDevTools", options);
 			}));
 		});
-
 		context.subscriptions.push(vs.commands.registerCommand("dart.startDebugging", (resource: vs.Uri, launchTemplate: any | undefined) => {
 			const launchConfig = Object.assign(
 				{
@@ -161,7 +160,6 @@ export class DebugCommands {
 				vs.window.showErrorMessage("There is no previous debug session to run.");
 			}
 		}));
-
 		context.subscriptions.push(vs.commands.registerCommand("dart.promptForVmService", async (defaultValueOrConfig: string | vs.DebugConfiguration | undefined): Promise<string | undefined> => {
 			const defaultValue = typeof defaultValueOrConfig === "string" ? defaultValueOrConfig : undefined;
 			return vs.window.showInputBox({
@@ -332,6 +330,10 @@ export class DebugCommands {
 			session.progress[progressID]?.complete();
 
 		const debugSessionEnd = new Date();
+<<<<<<< HEAD
+=======
+		this.analytics.logDebugSessionDuration(session.debuggerType, debugSessionEnd.getTime() - session.sessionStart.getTime());
+>>>>>>> 874c55dcbc1fb0ebb395469335e1c7dca6680bdb
 
 		// If this was the last session terminating, then remove all the flags for which service extensions are supported.
 		// Really we should track these per-session, but the changes of them being different given we only support one

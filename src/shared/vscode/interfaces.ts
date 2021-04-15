@@ -40,7 +40,7 @@ export interface InternalExtensionApi {
 	isInTestFileThatHasImplementation: boolean;
 	isInImplementationFileThatCanHaveTest: boolean;
 	isLsp: boolean;
-	dartCapabilities: HetuCapabilities;
+	hetuCapabilities: HetuCapabilities;
 	debugCommands: DebugCommandHandler;
 	debugProvider: DebugConfigurationProvider;
 	debugSessions: Array<{ loadedServiceExtensions: VmServiceExtension[] }>;
