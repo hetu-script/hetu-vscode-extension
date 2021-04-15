@@ -9,7 +9,7 @@ import { Analytics } from "../analytics";
 let forcedReanalyzeCount = 0;
 
 export class AnalyzerCommands {
-	constructor(context: vs.ExtensionContext, private readonly logger: Logger, analyzer: Analyzer, analytics: Analytics) {
+	constructor(context: vs.ExtensionContext, private readonly logger: Logger, analyzer: Analyzer) {
 		context.subscriptions.push(vs.commands.registerCommand("dart.openAnalyzerDiagnostics", async () => {
 			const res = await analyzer.getDiagnosticServerPort();
 			await envUtils.openInBrowser(`http://127.0.0.1:${res.port}/`);
@@ -18,14 +18,12 @@ export class AnalyzerCommands {
 			forcedReanalyzeCount++;
 			if (forcedReanalyzeCount === 10)
 				this.showServerRestartPrompt().catch((e) => logger.error(e));
-			analytics.logAnalyzerRestart();
 			vs.commands.executeCommand("_dart.reloadExtension");
 		}));
 		context.subscriptions.push(vs.commands.registerCommand("dart.forceReanalyze", async () => {
 			forcedReanalyzeCount++;
 			if (forcedReanalyzeCount === 10)
 				this.showServerRestartPrompt().catch((e) => logger.error(e));
-			analytics.logAnalyzerRestart();
 			await analyzer.forceReanalyze();
 		}));
 	}

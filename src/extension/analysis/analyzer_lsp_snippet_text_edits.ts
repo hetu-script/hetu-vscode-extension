@@ -1,6 +1,6 @@
 import * as vs from "vscode";
 import { ClientCapabilities, StaticFeature } from "vscode-languageclient";
-import { DartCapabilities } from "../../shared/capabilities/dart";
+import { HetuCapabilities } from "../../shared/capabilities/dart";
 import { IAmDisposable } from "../../shared/interfaces";
 import { disposeAll } from "../../shared/utils";
 import { config } from "../config";
@@ -8,7 +8,7 @@ import { config } from "../config";
 export class SnippetTextEditFeature implements IAmDisposable {
 	private disposables: IAmDisposable[] = [];
 
-	constructor(private readonly dartCapabilities: DartCapabilities) {
+	constructor(private readonly dartCapabilities: HetuCapabilities) {
 		this.disposables.push(vs.commands.registerCommand("_dart.applySnippetTextEdit", this.applySnippetTextEdit, this));
 	}
 

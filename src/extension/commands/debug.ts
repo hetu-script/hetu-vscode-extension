@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vs from "vscode";
-import { FlutterCapabilities } from "../../shared/capabilities/flutter";
 import { devToolsPages, doNotAskAgainAction, isInFlutterDebugModeDebugSessionContext, isInFlutterProfileModeDebugSessionContext, widgetInspectorPage } from "../../shared/constants";
 import { DebuggerType, DebugOption, debugOptionNames, LogSeverity, VmServiceExtension } from "../../shared/enums";
 import { DartWorkspaceContext, DevToolsPage, Logger, LogMessage } from "../../shared/interfaces";
@@ -10,7 +9,6 @@ import { fsPath } from "../../shared/utils/fs";
 import { showDevToolsNotificationIfAppropriate } from "../../shared/vscode/user_prompts";
 import { envUtils, getAllProjectFolders } from "../../shared/vscode/utils";
 import { Context } from "../../shared/vscode/workspace";
-import { Analytics } from "../analytics";
 import { config } from "../config";
 import { ServiceExtensionArgs, timeDilationNormal, timeDilationSlow, VmServiceExtensions } from "../flutter/vm_service_extensions";
 import { PubGlobal } from "../pub/global";
@@ -54,13 +52,10 @@ export class DebugCommands {
 	private onDebugSessionVmServiceAvailableEmitter = new vs.EventEmitter<DartDebugSessionInformation>();
 	public readonly onDebugSessionVmServiceAvailable = this.onDebugSessionVmServiceAvailableEmitter.event;
 	public readonly vmServices: VmServiceExtensions;
-	public readonly devTools: DevToolsManager;
 	private suppressFlutterWidgetErrors = false;
 
-	constructor(private readonly logger: Logger, private context: Context, workspaceContext: DartWorkspaceContext, private readonly flutterCapabilities: FlutterCapabilities, private readonly analytics: Analytics, pubGlobal: PubGlobal) {
+	constructor(private readonly logger: Logger, private context: Context, workspaceContext: DartWorkspaceContext) {
 		this.vmServices = new VmServiceExtensions(logger, this.sendServiceSetting);
-		this.devTools = new DevToolsManager(logger, workspaceContext, this, analytics, pubGlobal);
-		context.subscriptions.push(this.devTools);
 		context.subscriptions.push(this.debugOptions);
 		context.subscriptions.push(this.debugMetrics);
 
@@ -88,7 +83,6 @@ export class DebugCommands {
 			const session = await this.getDebugSession();
 			if (session && !session.session.configuration.noDebug && session.observatoryUri) {
 				await envUtils.openInBrowser(session.observatoryUri);
-				analytics.logDebuggerOpenObservatory();
 			} else if (session) {
 				logger.warn("Cannot start Observatory for session without debug/observatoryUri");
 			}
@@ -97,7 +91,6 @@ export class DebugCommands {
 			const session = await this.getDebugSession();
 			if (session && !session.session.configuration.noDebug && session.observatoryUri) {
 				await envUtils.openInBrowser(session.observatoryUri + "/#/timeline-dashboard");
-				analytics.logDebuggerOpenTimeline();
 			} else if (session) {
 				logger.warn("Cannot start Observatory for session without debug/observatoryUri");
 			}
@@ -109,47 +102,7 @@ export class DebugCommands {
 				return vs.commands.executeCommand("dart.openDevTools", options);
 			}));
 		});
-		context.subscriptions.push(vs.commands.registerCommand("flutter.openDevTools", async (options?: { debugSessionId?: string, triggeredAutomatically?: boolean, page?: DevToolsPage }): Promise<{ url: string, dispose: () => void } | undefined> =>
-			vs.commands.executeCommand("dart.openDevTools", options)));
-		context.subscriptions.push(vs.commands.registerCommand("dart.openDevTools", async (options?: { debugSessionId?: string, triggeredAutomatically?: boolean, page?: DevToolsPage }): Promise<{ url: string, dispose: () => void } | undefined> => {
-			if (!debugSessions.length)
-				return this.devTools.spawnForNoSession();
 
-			const session = options && options.debugSessionId
-				? debugSessions.find((s) => s.session.id === options.debugSessionId)
-				: await this.getDebugSession();
-			if (!session)
-				return; // User cancelled or specified session was gone
-
-			// Only show a notification if we were not triggered automatically.
-			const notify = !options || options.triggeredAutomatically !== true;
-			const page = options?.page;
-
-			if (session.vmServiceUri) {
-				return this.devTools.spawnForSession(session as DartDebugSessionInformation & { vmServiceUri: string }, { notify, page });
-			} else if (session.session.configuration.noDebug) {
-				vs.window.showInformationMessage("You must start your app with debugging in order to use DevTools.");
-			} else {
-				vs.window.showInformationMessage("This debug session is not ready yet.");
-			}
-		}));
-
-		// Misc custom debug commands.
-		context.subscriptions.push(vs.commands.registerCommand("_flutter.hotReload.touchBar", (args: any) => vs.commands.executeCommand("flutter.hotReload", args)));
-		context.subscriptions.push(vs.commands.registerCommand("flutter.hotReload", (args?: any) => {
-			if (!debugSessions.length)
-				return;
-			this.onWillHotReloadEmitter.fire();
-			debugSessions.forEach((s) => s.session.customRequest("hotReload", args));
-			analytics.logDebuggerHotReload();
-		}));
-		context.subscriptions.push(vs.commands.registerCommand("flutter.hotRestart", (args?: any) => {
-			if (!debugSessions.length)
-				return;
-			this.onWillHotRestartEmitter.fire();
-			debugSessions.forEach((s) => s.session.customRequest("hotRestart", args));
-			analytics.logDebuggerRestart();
-		}));
 		context.subscriptions.push(vs.commands.registerCommand("dart.startDebugging", (resource: vs.Uri, launchTemplate: any | undefined) => {
 			const launchConfig = Object.assign(
 				{
@@ -208,37 +161,7 @@ export class DebugCommands {
 				vs.window.showErrorMessage("There is no previous debug session to run.");
 			}
 		}));
-		context.subscriptions.push(vs.commands.registerCommand("dart.rerunLastTestDebugSession", () => {
-			if (LastTestDebugSession.debugConfig) {
-				vs.debug.startDebugging(LastTestDebugSession.workspaceFolder, LastTestDebugSession.debugConfig);
-			} else {
-				vs.window.showErrorMessage("There is no previous test session to run.");
-			}
-		}));
 
-		// Attach commands.
-		context.subscriptions.push(vs.commands.registerCommand("dart.attach", () => {
-			vs.debug.startDebugging(undefined, {
-				name: "Dart: Attach to Process",
-				request: "attach",
-				type: "dart",
-			});
-		}));
-		context.subscriptions.push(vs.commands.registerCommand("flutter.attachProcess", () => {
-			vs.debug.startDebugging(undefined, {
-				name: "Flutter: Attach to Process",
-				request: "attach",
-				type: "dart",
-				vmServiceUri: "${command:dart.promptForVmService}",
-			});
-		}));
-		context.subscriptions.push(vs.commands.registerCommand("flutter.attach", () => {
-			vs.debug.startDebugging(undefined, {
-				name: "Flutter: Attach to Device",
-				request: "attach",
-				type: "dart",
-			});
-		}));
 		context.subscriptions.push(vs.commands.registerCommand("dart.promptForVmService", async (defaultValueOrConfig: string | vs.DebugConfiguration | undefined): Promise<string | undefined> => {
 			const defaultValue = typeof defaultValueOrConfig === "string" ? defaultValueOrConfig : undefined;
 			return vs.window.showInputBox({
@@ -409,7 +332,6 @@ export class DebugCommands {
 			session.progress[progressID]?.complete();
 
 		const debugSessionEnd = new Date();
-		this.analytics.logDebugSessionDuration(session.debuggerType, debugSessionEnd.getTime() - session.sessionStart.getTime());
 
 		// If this was the last session terminating, then remove all the flags for which service extensions are supported.
 		// Really we should track these per-session, but the changes of them being different given we only support one
@@ -448,13 +370,11 @@ export class DebugCommands {
 			// This event comes back when the user restarts with the Restart button
 			// (eg. it wasn't intiated from our extension, so we don't get to log it
 			// in the command).
-			this.analytics.logDebuggerRestart();
 			this.onWillHotRestartEmitter.fire();
 		} else if (e.event === "dart.hotReloadRequest") {
 			// This event comes back when the user restarts with the Restart button
 			// (eg. it wasn't intiated from our extension, so we don't get to log it
 			// in the command).
-			this.analytics.logDebuggerHotReload();
 			this.onWillHotReloadEmitter.fire();
 		} else if (e.event === "dart.flutter.firstFrame") {
 			this.onFirstFrameEmitter.fire();

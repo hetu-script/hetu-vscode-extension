@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as vs from "vscode";
-import { DartCapabilities } from "../../shared/capabilities/dart";
+import { HetuCapabilities } from "../../shared/capabilities/dart";
 import { getExecutableName } from "../../shared/constants";
 import { DartSdks, Logger } from "../../shared/interfaces";
 import { arrayStartsWith } from "../../shared/utils/array";
@@ -166,7 +166,7 @@ export abstract class BaseTaskProvider implements vs.TaskProvider {
 export class DartTaskProvider extends BaseTaskProvider {
 	static readonly type = "dart"; // also referenced in package.json
 
-	constructor(logger: Logger, context: vs.ExtensionContext, sdks: DartSdks, private readonly dartCapabilities: DartCapabilities) {
+	constructor(logger: Logger, context: vs.ExtensionContext, sdks: DartSdks, private readonly dartCapabilities: HetuCapabilities) {
 		super(logger, context, sdks);
 		context.subscriptions.push(vs.commands.registerCommand("dart.task.dartdoc", (uri) => this.runTask(uri, "dartdoc", [])));
 	}

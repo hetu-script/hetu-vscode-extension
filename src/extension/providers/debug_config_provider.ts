@@ -3,8 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vs from "vscode";
 import { CancellationToken, DebugConfiguration, DebugConfigurationProvider, ProviderResult, Uri, window, workspace, WorkspaceFolder } from "vscode";
-import { DartCapabilities } from "../../shared/capabilities/dart";
-import { FlutterCapabilities } from "../../shared/capabilities/flutter";
+import { HetuCapabilities } from "../../shared/capabilities/dart";
 import { CHROME_OS_VM_SERVICE_PORT, debugAnywayAction, HAS_LAST_DEBUG_CONFIG, HAS_LAST_TEST_DEBUG_CONFIG, isChromeOS, showErrorsAction } from "../../shared/constants";
 import { FlutterLaunchRequestArguments } from "../../shared/debug/interfaces";
 import { DebuggerType, VmServiceExtension } from "../../shared/enums";
@@ -18,7 +17,6 @@ import { FlutterDeviceManager } from "../../shared/vscode/device_manager";
 import { warnIfPathCaseMismatch } from "../../shared/vscode/utils";
 import { cloudShellDefaultFlutterRunAdditionalArgs, isCloudShell } from "../../shared/vscode/utils_cloud";
 import { WorkspaceContext } from "../../shared/workspace";
-import { Analytics } from "../analytics";
 import { DebugCommands, debugSessions, LastDebugSession, LastTestDebugSession } from "../commands/debug";
 import { isLogging } from "../commands/logging";
 import { config } from "../config";
@@ -29,7 +27,7 @@ import { getExcludedFolders, isFlutterProjectFolder, isInsideFolderNamed, isTest
 import { getGlobalFlutterArgs, getToolEnv } from "../utils/processes";
 
 export class DebugConfigProvider implements DebugConfigurationProvider {
-	constructor(private readonly logger: Logger, private readonly wsContext: WorkspaceContext, private readonly analytics: Analytics, private readonly pubGlobal: PubGlobal, private readonly testTreeModel: TestTreeModel, private readonly daemon: IFlutterDaemon, private readonly deviceManager: FlutterDeviceManager, private readonly debugCommands: DebugCommands, private dartCapabilities: DartCapabilities, private readonly flutterCapabilities: FlutterCapabilities) { }
+	constructor(private readonly logger: Logger, private readonly wsContext: WorkspaceContext, private readonly testTreeModel: TestTreeModel, private readonly debugCommands: DebugCommands, private hetuCapabilities: HetuCapabilities) { }
 
 	public resolveDebugConfiguration(folder: WorkspaceFolder | undefined, debugConfig: DebugConfiguration, token?: CancellationToken): ProviderResult<DebugConfiguration> {
 		debugConfig.type = debugConfig.type || "dart";
@@ -248,40 +246,9 @@ export class DebugConfigProvider implements DebugConfigurationProvider {
 		if (token && token.isCancellationRequested)
 			return;
 
-		let deviceToLaunchOn = this.deviceManager?.getDevice(debugConfig.deviceId) || this.deviceManager?.currentDevice;
-
-		// Ensure we have a device if required.
-		if (debugType === DebuggerType.Flutter && this.deviceManager && this.daemon && debugConfig.deviceId !== "flutter-tester") {
-			let supportedPlatforms = this.daemon.capabilities.providesPlatformTypes && debugConfig.cwd
-				? (await this.daemon.getSupportedPlatforms(debugConfig.cwd)).platforms
-				: [];
-
-			// If the current device is not valid, prompt the user.
-			if (!this.deviceManager.isSupported(supportedPlatforms, deviceToLaunchOn))
-				deviceToLaunchOn = await this.deviceManager.showDevicePicker(supportedPlatforms);
-
-			// Refresh the supported platforms, as the we may have enabled new platforms during
-			// the call to showDevicePicker.
-			supportedPlatforms = this.daemon.capabilities.providesPlatformTypes && debugConfig.cwd
-				? (await this.daemon.getSupportedPlatforms(debugConfig.cwd)).platforms
-				: [];
-
-			// If we still don't have a valid device, show an error.
-			if (!this.deviceManager.isSupported(supportedPlatforms, deviceToLaunchOn)) {
-				logger.warn("Unable to launch due to no active device");
-				window.showInformationMessage("Cannot launch without an active device");
-				return undefined; // undefined means silent (don't open launch.json).
-			}
-		}
-
 		if (token && token.isCancellationRequested)
 			return;
-
-		// Ensure we have any require dependencies.
-		if (!(await this.installDependencies(debugType, this.pubGlobal))) {
-			return undefined;
-		}
-
+			
 		if (token && token.isCancellationRequested)
 			return;
 

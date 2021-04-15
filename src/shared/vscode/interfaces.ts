@@ -2,7 +2,7 @@ import { CompletionItem, CompletionItemProvider, DebugConfigurationProvider, Deb
 import * as lsp from "../analysis/lsp/custom_protocol";
 import { AvailableSuggestion, FlutterOutline, Outline } from "../analysis_server_types";
 import { Analyzer } from "../analyzer";
-import { DartCapabilities } from "../capabilities/dart";
+import { HetuCapabilities } from "../capabilities/dart";
 import { FlutterCapabilities } from "../capabilities/flutter";
 import { VersionStatus, VmService, VmServiceExtension } from "../enums";
 import { WebClient } from "../fetch";
@@ -40,7 +40,7 @@ export interface InternalExtensionApi {
 	isInTestFileThatHasImplementation: boolean;
 	isInImplementationFileThatCanHaveTest: boolean;
 	isLsp: boolean;
-	dartCapabilities: DartCapabilities;
+	dartCapabilities: HetuCapabilities;
 	debugCommands: DebugCommandHandler;
 	debugProvider: DebugConfigurationProvider;
 	debugSessions: Array<{ loadedServiceExtensions: VmServiceExtension[] }>;

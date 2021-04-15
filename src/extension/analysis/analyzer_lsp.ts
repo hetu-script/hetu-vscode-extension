@@ -5,7 +5,7 @@ import { ExecuteCommandSignature, HandleWorkDoneProgressSignature, LanguageClien
 import { LanguageClient, StreamInfo } from "vscode-languageclient/node";
 import { AnalyzerStatusNotification, CompleteStatementRequest, DiagnosticServerRequest, ReanalyzeRequest, SuperRequest } from "../../shared/analysis/lsp/custom_protocol";
 import { Analyzer } from "../../shared/analyzer";
-import { DartCapabilities } from "../../shared/capabilities/dart";
+import { HetuCapabilities } from "../../shared/capabilities/dart";
 import { dartVMPath, validClassNameRegex, validMethodNameRegex } from "../../shared/constants";
 import { LogCategory } from "../../shared/enums";
 import { DartSdks, Logger } from "../../shared/interfaces";
@@ -24,7 +24,7 @@ export class LspAnalyzer extends Analyzer {
 	public readonly fileTracker: LspFileTracker;
 	public readonly snippetTextEdits: SnippetTextEditFeature;
 
-	constructor(logger: Logger, sdks: DartSdks, dartCapabilities: DartCapabilities, wsContext: WorkspaceContext) {
+	constructor(logger: Logger, sdks: DartSdks, dartCapabilities: HetuCapabilities, wsContext: WorkspaceContext) {
 		super(new CategoryLogger(logger, LogCategory.Analyzer));
 		this.snippetTextEdits = new SnippetTextEditFeature(dartCapabilities);
 		this.client = createClient(this.logger, sdks, dartCapabilities, wsContext, this.buildMiddleware());
@@ -177,7 +177,7 @@ export class LspAnalyzer extends Analyzer {
 	}
 }
 
-function createClient(logger: Logger, sdks: DartSdks, dartCapabilities: DartCapabilities, wsContext: WorkspaceContext, middleware: Middleware): LanguageClient {
+function createClient(logger: Logger, sdks: DartSdks, dartCapabilities: HetuCapabilities, wsContext: WorkspaceContext, middleware: Middleware): LanguageClient {
 	const clientOptions: LanguageClientOptions = {
 		initializationOptions: {
 			// 	onlyAnalyzeProjectsWithOpenFiles: true,
@@ -200,7 +200,7 @@ function createClient(logger: Logger, sdks: DartSdks, dartCapabilities: DartCapa
 	return client;
 }
 
-function spawnServer(logger: Logger, sdks: DartSdks, dartCapabilities: DartCapabilities): Promise<StreamInfo> {
+function spawnServer(logger: Logger, sdks: DartSdks, dartCapabilities: HetuCapabilities): Promise<StreamInfo> {
 	// TODO: Replace with constructing an Analyzer that passes LSP flag (but still reads config
 	// from paths etc) and provide it's process.
 	const vmPath = path.join(sdks.dart, dartVMPath);

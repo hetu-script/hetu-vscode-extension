@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import * as vs from "vscode";
-import { DartCapabilities } from "../../shared/capabilities/dart";
+import { HetuCapabilities } from "../../shared/capabilities/dart";
 import { FlutterCapabilities } from "../../shared/capabilities/flutter";
 import { vsCodeVersion } from "../../shared/capabilities/vscode";
 import { dartVMPath, DART_CREATE_PROJECT_TRIGGER_FILE, defaultLaunchJson, flutterPath, iUnderstandAction, pubPath } from "../../shared/constants";
@@ -44,7 +44,7 @@ export class SdkCommands {
 	// A map of any in-progress commands so we can terminate them if we want to run another.
 	private runningCommands: { [workspaceUriAndCommand: string]: ChainedProcess | undefined } = {};
 
-	constructor(private readonly logger: Logger, private readonly context: Context, private readonly workspace: DartWorkspaceContext, private readonly sdkUtils: SdkUtils, private readonly pubGlobal: PubGlobal, private readonly dartCapabilities: DartCapabilities, private readonly flutterCapabilities: FlutterCapabilities, private readonly deviceManager: FlutterDeviceManager) {
+	constructor(private readonly logger: Logger, private readonly context: Context, private readonly workspace: DartWorkspaceContext, private readonly sdkUtils: SdkUtils, private readonly pubGlobal: PubGlobal, private readonly dartCapabilities: HetuCapabilities, private readonly flutterCapabilities: FlutterCapabilities, private readonly deviceManager: FlutterDeviceManager) {
 		this.sdks = workspace.sdks;
 		const dartSdkManager = new DartSdkManager(this.logger, this.workspace.sdks);
 		context.subscriptions.push(vs.commands.registerCommand("dart.changeSdk", () => dartSdkManager.changeSdk()));
