@@ -140,7 +140,6 @@
       ]
     },
     "function-declaration": {
-<<<<<<< HEAD
       "name": "meta.function.hetu",
       "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(fun|get|set|construct\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
       "beginCaptures": {
@@ -166,27 +165,6 @@
           "include": "#type-parameters"
         },
         {
-=======
-			"name": "meta.function.hetu",
-			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(fun|construct|get|set|async\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
-			"beginCaptures": {
-				"1": {
-					"name": "storage.type.function.hetu"
-				},
-				"2": {
-					"name": "meta.definition.function.hetu entity.name.function.hetu"
-				}
-			},
-			"end": "(?=;|^\\s*$|(?:^\\s*(?:abstract|async|class|const|enum|export|fun|import|let|return|var)\\b))|(?<=\\})",
-			"patterns": [
-				{
-					"include": "#function-name"
-				},
-				{
-					"include": "#type-parameters"
-				},
-				{
->>>>>>> wip: lsp
           "name": "meta.parameters.hetu",
           "begin": "\\(",
           "beginCaptures": {
@@ -936,7 +914,7 @@
     "function-name": {
       "patterns": [
         {
-		  "name": "entity.name.function.hetu",
+          "name": "entity.name.function.hetu",
           "match": "[_$[:lower:]][_$[:alnum:]]*"
         }
       ]
@@ -963,7 +941,6 @@
       ]
     },
     "function-return-type": {
-<<<<<<< HEAD
       "patterns": [
         {
           "name": "meta.return.type.hetu",
@@ -976,20 +953,6 @@
           "end": "(?<![:|&])(?=$|^|[{};,]|//)",
           "patterns": [
             {
-=======
-			"patterns": [
-				{
-					"name": "meta.return.type.hetu",
-					"begin": "\\s*(->)(?=\\s*\\S)",
-					"beginCaptures": {
-						"1": {
-							"name": "keyword.operator.type.annotation.hetu"
-						}
-					},
-					"end": "(?<![:|&])(?=$|^|[{};,]|//)",
-					"patterns": [
-						{
->>>>>>> wip: lsp
               "include": "#type"
             }
           ]

@@ -7,48 +7,40 @@ import { config } from "../config";
 
 let extensionLogPath: string;
 export function getExtensionLogPath() {
-	extensionLogPath = extensionLogPath || config.extensionLogFile || path.join(process.env.DC_TEST_LOGS || os.tmpdir(), `dart-code-startup-log-${getRandomInt(0x1000, 0x10000).toString(16)}.txt`);
-	return extensionLogPath;
+  extensionLogPath = extensionLogPath || config.extensionLogFile || path.join(process.env.DC_TEST_LOGS || os.tmpdir(), `dart-code-startup-log-${getRandomInt(0x1000, 0x10000).toString(16)}.txt`);
+  return extensionLogPath;
 }
 export const userSelectableLogCategories: { [key: string]: LogCategory } = {
-	"Analysis Server": LogCategory.Analyzer,
-	"Command Processes": LogCategory.CommandProcesses,
-	"Debugger and VM Service": LogCategory.VmService,
-	"DevTools": LogCategory.DevTools,
-	"Flutter Device Daemon": LogCategory.FlutterDaemon,
-	"Flutter Run": LogCategory.FlutterRun,
-	"Flutter Test": LogCategory.FlutterTest,
-	"Pub Run Test": LogCategory.PubTest,
-	"Web Daemon": LogCategory.WebDaemon,
+  "Analysis Server": LogCategory.Analyzer,
+  "Command Processes": LogCategory.CommandProcesses,
+  "Debugger and VM Service": LogCategory.VmService,
 };
 
 export const analysisServerLogCategories = [
-	LogCategory.Analyzer,
-	LogCategory.CommandProcesses,
+  LogCategory.Analyzer,
+  LogCategory.CommandProcesses,
 ];
 
 export const extensionsLogCategories = [
-	LogCategory.CommandProcesses,
-	LogCategory.DevTools,
-	LogCategory.FlutterDaemon,
+  LogCategory.CommandProcesses,
 ];
 
 export const debuggingLogCategories = Object.values(userSelectableLogCategories)
-	.filter((c) => c !== LogCategory.Analyzer);
+  .filter((c) => c !== LogCategory.Analyzer);
 
 const logHeader: string[] = [];
 export function clearLogHeader() {
-	logHeader.length = 0;
+  logHeader.length = 0;
 }
 export function getLogHeader() {
-	if (!logHeader.length)
-		return "";
-	return logHeader.join(platformEol) + platformEol + platformEol;
+  if (!logHeader.length)
+    return "";
+  return logHeader.join(platformEol) + platformEol + platformEol;
 }
 export function addToLogHeader(f: () => string) {
-	try {
-		logHeader.push(f().replace(/\r/g, "").replace(/\n/g, "\r\n"));
-	} catch {
-		// Don't log here; we may be trying to access things that aren't available yet.
-	}
+  try {
+    logHeader.push(f().replace(/\r/g, "").replace(/\n/g, "\r\n"));
+  } catch {
+    // Don't log here; we may be trying to access things that aren't available yet.
+  }
 }
