@@ -1,5 +1,4 @@
 import * as fs from "fs";
-import { DevToolsPage } from "./interfaces";
 
 export const dartCodeExtensionIdentifier = "Dart-Code.dart-code";
 export const flutterExtensionIdentifier = "Dart-Code.flutter";
@@ -129,17 +128,6 @@ export const cancelAction = "Cancel";
 
 export const validMethodNameRegex = new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$");
 export const validClassNameRegex = validMethodNameRegex;
-
-export const widgetInspectorPage: DevToolsPage = { pageId: "inspector", commandId: "dart.openDevToolsInspector", title: "Widget Inspector" };
-export const devToolsPages: DevToolsPage[] = [
-  // First entry is the default page.
-  widgetInspectorPage,
-  { pageId: "cpu-profiler", commandId: "dart.openDevToolsCpuProfiler", legacyPageId: "performance", title: "CPU Profiler" },
-  { pageId: "memory", commandId: "dart.openDevToolsMemory", title: "Memory" },
-  { pageId: "performance", commandId: "dart.openDevToolsPerformance", legacyPageId: "timeline", title: "Performance" },
-  { pageId: "network", commandId: "dart.openDevToolsNetwork", title: "Network" },
-  { pageId: "logging", commandId: "dart.openDevToolsLogging", title: "Logging" },
-];
 
 export const dartRecommendedConfig = {
   // Automatically format code on save and during typing of certain characters

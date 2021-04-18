@@ -138,22 +138,19 @@ export function escapeShell(args: string[]) {
 export async function promptToReloadExtension(prompt?: string, buttonText?: string, offerLog?: boolean): Promise<void> {
   const restartAction = buttonText || "Reload";
   const actions = offerLog ? [restartAction, showLogAction] : [restartAction];
-  const ringLogContents = ringLog.toString();
   let showPromptAgain = true;
-  const tempLogPath = path.join(os.tmpdir(), `log-${getRandomInt(0x1000, 0x10000).toString(16)}.txt`);
   while (showPromptAgain) {
     showPromptAgain = false;
     const chosenAction = prompt && await window.showInformationMessage(prompt, ...actions);
     if (chosenAction === showLogAction) {
       showPromptAgain = true;
-      openLogContents(undefined, ringLogContents, tempLogPath);
     } else if (!prompt || chosenAction === restartAction) {
       commands.executeCommand("_hetu.reloadExtension");
     }
   }
 }
 
-const shouldLogTimings = false;
+const shouldLogTimings = true;
 const start = process.hrtime.bigint();
 let last = start;
 function pad(str: string, length: number) {

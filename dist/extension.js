@@ -4013,7 +4013,6 @@ const analyzer_1 = __webpack_require__(/*! ../../shared/analyzer */ "./src/share
 const constants_1 = __webpack_require__(/*! ../../shared/constants */ "./src/shared/constants.ts");
 const enums_1 = __webpack_require__(/*! ../../shared/enums */ "./src/shared/enums.ts");
 const logging_1 = __webpack_require__(/*! ../../shared/logging */ "./src/shared/logging.ts");
-const extension_utils_1 = __webpack_require__(/*! ../../shared/vscode/extension_utils */ "./src/shared/vscode/extension_utils.ts");
 const config_1 = __webpack_require__(/*! ../config */ "./src/extension/config.ts");
 const misc_1 = __webpack_require__(/*! ../utils/misc */ "./src/extension/utils/misc.ts");
 const processes_1 = __webpack_require__(/*! ../utils/processes */ "./src/extension/utils/processes.ts");
@@ -4041,16 +4040,6 @@ class LspAnalyzer extends analyzer_1.Analyzer {
         function isLanguageValuePair(input) {
             return "language" in input && typeof input.language === "string" && "value" in input && typeof input.value === "string";
         }
-        function cleanDocString(input) {
-            if (input instanceof vscode_1.MarkdownString)
-                return new vscode_1.MarkdownString(extension_utils_1.cleanDartdoc(input.value));
-            else if (typeof input === "string")
-                return extension_utils_1.cleanDartdoc(input);
-            else if (isLanguageValuePair(input))
-                return { language: input.language, value: extension_utils_1.cleanDartdoc(input.value) };
-            else
-                return input;
-        }
         return {
             handleWorkDoneProgress: (token, params, next) => {
                 if (params.kind === "begin")
@@ -4060,14 +4049,10 @@ class LspAnalyzer extends analyzer_1.Analyzer {
                 next(token, params);
             },
             resolveCompletionItem: (item, token, next) => {
-                if (item.documentation)
-                    item.documentation = cleanDocString(item.documentation);
                 return next(item, token);
             },
             provideHover: (document, position, token, next) => __awaiter(this, void 0, void 0, function* () {
                 const item = yield next(document, position, token);
-                if (item === null || item === void 0 ? void 0 : item.contents)
-                    item.contents = item.contents.map((s) => cleanDocString(s));
                 return item;
             }),
             executeCommand: (command, args, next) => __awaiter(this, void 0, void 0, function* () {
@@ -4161,7 +4146,7 @@ function createClient(logger, middleware) {
         middleware,
         outputChannelName: "LSP",
     };
-    const client = new node_1.LanguageClient("dartAnalysisLSP", "Dart Analysis Server", () => spawnServer(logger), clientOptions);
+    const client = new node_1.LanguageClient("hetuAnalysisLSP", "Hetu Analysis Server", () => spawnServer(logger), clientOptions);
     return client;
 }
 function spawnServer(logger) {
@@ -4329,11 +4314,10 @@ exports.EditCommands = void 0;
 const vs = __webpack_require__(/*! vscode */ "vscode");
 const constants_1 = __webpack_require__(/*! ../../shared/constants */ "./src/shared/constants.ts");
 const utils_1 = __webpack_require__(/*! ../../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
-const terminals_1 = __webpack_require__(/*! ../utils/vscode/terminals */ "./src/extension/utils/vscode/terminals.ts");
 class EditCommands {
     constructor() {
         this.commands = [];
-        this.commands.push(vs.commands.registerCommand("_dart.jumpToLineColInUri", this.jumpToLineColInUri, this), vs.commands.registerCommand("_dart.showCode", utils_1.showCode, this), vs.commands.registerCommand("dart.writeRecommendedSettings", this.writeRecommendedSettings, this), vs.commands.registerCommand("dart.printSelectionToTerminal", this.printSelectionToTerminal, this));
+        this.commands.push(vs.commands.registerCommand("_dart.jumpToLineColInUri", this.jumpToLineColInUri, this), vs.commands.registerCommand("_dart.showCode", utils_1.showCode, this), vs.commands.registerCommand("dart.writeRecommendedSettings", this.writeRecommendedSettings, this));
     }
     jumpToLineColInUri(uri, lineNumber, columnNumber, inOtherEditorColumn) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -4365,17 +4349,6 @@ class EditCommands {
             const action = yield vs.window.showInformationMessage("Recommended settings were written to the [dart] section of your global settings file", constants_1.openSettingsAction);
             if (action === constants_1.openSettingsAction)
                 yield vs.commands.executeCommand("workbench.action.openSettingsJson");
-        });
-    }
-    printSelectionToTerminal() {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            const editor = vs.window.activeTextEditor;
-            const selection = editor === null || editor === void 0 ? void 0 : editor.selection;
-            const text = (_a = editor === null || editor === void 0 ? void 0 : editor.document) === null || _a === void 0 ? void 0 : _a.getText(selection);
-            if (text) {
-                terminals_1.writeToPseudoTerminal([text]);
-            }
         });
     }
     dispose() {
@@ -4748,7 +4721,6 @@ const edit_lsp_1 = __webpack_require__(/*! ./commands/edit_lsp */ "./src/extensi
 const config_1 = __webpack_require__(/*! ./config */ "./src/extension/config.ts");
 const analyzer_status_reporter_1 = __webpack_require__(/*! ./lsp/analyzer_status_reporter */ "./src/extension/lsp/analyzer_status_reporter.ts");
 const go_to_super_1 = __webpack_require__(/*! ./lsp/go_to_super */ "./src/extension/lsp/go_to_super.ts");
-const user_prompts_1 = __webpack_require__(/*! ./user_prompts */ "./src/extension/user_prompts.ts");
 const util = __webpack_require__(/*! ./utils */ "./src/extension/utils.ts");
 const log_1 = __webpack_require__(/*! ./utils/log */ "./src/extension/utils/log.ts");
 const processes_1 = __webpack_require__(/*! ./utils/processes */ "./src/extension/utils/processes.ts");
@@ -4763,6 +4735,7 @@ const loggers = [];
 const logger = new logging_1.EmittingLogger();
 function activate(context, isRestart = false) {
     return __awaiter(this, void 0, void 0, function* () {
+        context.subscriptions.push(logging_1.logToConsole(logger));
         const extContext = workspace_1.Context.for(context);
         util.logTime("Code called activate");
         // Wire up a reload command that will re-initialise everything.
@@ -4773,12 +4746,6 @@ function activate(context, isRestart = false) {
             yield activate(context, true);
             logger.info("Done!");
         })));
-        // Handle new projects before creating the analyer to avoid a few issues with
-        // showing errors while packages are fetched, plus issues like
-        // https://github.com/Dart-Code/Dart-Code/issues/2793 which occur if the analyzer
-        // is created too early.
-        if (!isRestart)
-            yield user_prompts_1.handleNewProjects(logger, extContext);
         lspAnalyzer = new analyzer_lsp_1.LspAnalyzer(logger);
         const lspClient = lspAnalyzer.client;
         context.subscriptions.push(lspAnalyzer);
@@ -4979,254 +4946,6 @@ exports.LspGoToSuperCommand = LspGoToSuperCommand;
 
 /***/ }),
 
-/***/ "./src/extension/user_prompts.ts":
-/*!***************************************!*\
-  !*** ./src/extension/user_prompts.ts ***!
-  \***************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.handleNewProjects = exports.showUserPrompts = void 0;
-const fs = __webpack_require__(/*! fs */ "fs");
-const path = __webpack_require__(/*! path */ "path");
-const vs = __webpack_require__(/*! vscode */ "vscode");
-const constants_1 = __webpack_require__(/*! ../shared/constants */ "./src/shared/constants.ts");
-const enums_1 = __webpack_require__(/*! ../shared/enums */ "./src/shared/enums.ts");
-const fs_1 = __webpack_require__(/*! ../shared/utils/fs */ "./src/shared/utils/fs.ts");
-const extension_utils_1 = __webpack_require__(/*! ../shared/vscode/extension_utils */ "./src/shared/vscode/extension_utils.ts");
-const user_prompts_1 = __webpack_require__(Object(function webpackMissingModule() { var e = new Error("Cannot find module '../shared/vscode/user_prompts'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()));
-const utils_1 = __webpack_require__(/*! ../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
-const sdk_1 = __webpack_require__(Object(function webpackMissingModule() { var e = new Error("Cannot find module './commands/sdk'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()));
-const utils_2 = __webpack_require__(/*! ./utils */ "./src/extension/utils.ts");
-function showUserPrompts(logger, context, webClient, workspaceContext) {
-    return __awaiter(this, void 0, void 0, function* () {
-        function shouldSuppress(key) {
-            const stateKey = `${constants_1.userPromptContextPrefix}${key}`;
-            return context.get(stateKey) === true;
-        }
-        /// Shows a prompt and stores the return value. Prompt should return `true` to mark
-        /// this extension as seen-forever and it won't be shown again. Returning anything
-        /// else will allow the prompt to appear again next time.
-        function showPrompt(key, prompt) {
-            const stateKey = `${constants_1.userPromptContextPrefix}${key}`;
-            prompt().then((res) => context.update(stateKey, res), error);
-        }
-        if (workspaceContext.hasAnyFlutterProjects && !extension_utils_1.hasFlutterExtension && !shouldSuppress(constants_1.installFlutterExtensionPromptKey)) {
-            // It's possible that we got here when the user installed the Flutter extension, because it causes Dart to install
-            // first and activate. So, before showing this prompt we'll wait 30 seconds and then check if we still don't
-            // have the Flutter extension, and then show the prompt.
-            yield new Promise((resolve) => setTimeout(resolve, 20000));
-            if (!extension_utils_1.checkHasFlutterExtension())
-                return showPrompt(constants_1.installFlutterExtensionPromptKey, promptToInstallFlutterExtension);
-        }
-        // Check the user hasn't installed Flutter in a forbidden location that will cause issues.
-        if (workspaceContext.hasAnyFlutterProjects && workspaceContext.sdks.flutter) {
-            if (constants_1.isWin) {
-                const forbiddenLocations = [
-                    process.env.COMMONPROGRAMFILES,
-                    process.env["COMMONPROGRAMFILES(x86)"],
-                    process.env.CommonProgramW6432,
-                    process.env.PROGRAMFILES,
-                    process.env.ProgramW6432,
-                    process.env["PROGRAMFILES(X86)"],
-                ];
-                const installedForbiddenLocation = forbiddenLocations.find((fl) => { var _a; return fl && ((_a = workspaceContext.sdks.flutter) === null || _a === void 0 ? void 0 : _a.toLowerCase().startsWith(fl.toLowerCase())); });
-                if (installedForbiddenLocation) {
-                    logger.error(`Flutter is installed in protected folder: ${installedForbiddenLocation}`);
-                    vs.window.showErrorMessage("The Flutter SDK is installed in a protected folder and may not function correctly. Please move the SDK to a location that is user-writable without Administration permissions and restart.");
-                }
-            }
-        }
-        const lastSeenVersionNotification = context.lastSeenVersion;
-        if (!lastSeenVersionNotification) {
-            // If we've not got a stored version, this is the first install, so just
-            // stash the current version and don't show anything.
-            context.lastSeenVersion = extension_utils_1.extensionVersion;
-        }
-        else if (!extension_utils_1.isDevExtension && lastSeenVersionNotification !== extension_utils_1.extensionVersion) {
-            const versionLink = extension_utils_1.extensionVersion.split(".").slice(0, 2).join(".").replace(".", "-");
-            // tslint:disable-next-line: no-floating-promises
-            promptToShowReleaseNotes(extension_utils_1.extensionVersion, versionLink).then(() => context.lastSeenVersion = extension_utils_1.extensionVersion);
-            return;
-        }
-        if (workspaceContext.hasAnyFlutterProjects) {
-            if (yield user_prompts_1.showFlutterSurveyNotificationIfAppropriate(context, webClient, utils_1.envUtils.openInBrowser, Date.now(), logger))
-                return; // Bail if we showed it, so we won't show any other notifications.
-        }
-        if (!shouldSuppress(constants_1.useRecommendedSettingsPromptKey)) {
-            showPrompt(constants_1.useRecommendedSettingsPromptKey, promptToUseRecommendedSettings);
-            return;
-        }
-        // (though, there are no other notifications right now...)
-    });
-}
-exports.showUserPrompts = showUserPrompts;
-function promptToUseRecommendedSettings() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const action = yield vs.window.showInformationMessage("Would you like to use recommended VS Code settings for Dart & Flutter?", constants_1.yesAction, constants_1.noAction, constants_1.showRecommendedSettingsAction);
-        if (action === constants_1.yesAction) {
-            yield vs.commands.executeCommand("dart.writeRecommendedSettings");
-        }
-        else if (action === constants_1.showRecommendedSettingsAction) {
-            yield utils_1.envUtils.openInBrowser(constants_1.recommendedSettingsUrl);
-        }
-        return true;
-    });
-}
-function promptToInstallFlutterExtension() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const installExtension = "Install Flutter Extension";
-        const res = yield vs.window.showInformationMessage("The Flutter extension is required to work with Flutter projects.", installExtension);
-        if (res === installExtension) {
-            yield vs.window.withProgress({ location: vs.ProgressLocation.Notification }, (progress) => {
-                progress.report({ message: "Installing Flutter extension" });
-                return new Promise((resolve) => {
-                    vs.extensions.onDidChange((e) => resolve());
-                    vs.commands.executeCommand("workbench.extensions.installExtension", constants_1.flutterExtensionIdentifier);
-                });
-            });
-            // tslint:disable-next-line: no-floating-promises
-            utils_2.promptToReloadExtension();
-        }
-        return false;
-    });
-}
-function promptToShowReleaseNotes(versionDisplay, versionLink) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const res = yield vs.window.showInformationMessage(`Dart Code has been updated to v${versionDisplay}`, `Show Release Notes`);
-        if (res) {
-            yield utils_1.envUtils.openInBrowser(`https://dartcode.org/releases/v${versionLink}/`);
-        }
-        return true; // Always mark this as done; we don't want to prompt the user multiple times.
-    });
-}
-function error(err) {
-    vs.window.showErrorMessage(err.message);
-}
-function handleNewProjects(logger, context) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield Promise.all(utils_1.getDartWorkspaceFolders().map((wf) => __awaiter(this, void 0, void 0, function* () {
-            try {
-                yield handleStagehandTrigger(logger, wf, constants_1.DART_CREATE_PROJECT_TRIGGER_FILE);
-                yield handleFlutterCreateTrigger(wf);
-            }
-            catch (e) {
-                logger.error("Failed to create project");
-                logger.error(e);
-                vs.window.showErrorMessage("Failed to create project");
-            }
-        })));
-    });
-}
-exports.handleNewProjects = handleNewProjects;
-function handleStagehandTrigger(logger, wf, triggerFilename) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const triggerFile = path.join(fs_1.fsPath(wf.uri), triggerFilename);
-        if (!fs.existsSync(triggerFile))
-            return;
-        const templateJson = fs.readFileSync(triggerFile).toString().trim();
-        let template;
-        try {
-            template = JSON.parse(templateJson);
-        }
-        catch (e) {
-            logger.error("Failed to get Stagehand templates");
-            logger.error(e);
-            vs.window.showErrorMessage("Failed to run Stagehand to create project");
-            return;
-        }
-        fs.unlinkSync(triggerFile);
-        logger.info(`Creating Dart project for ${fs_1.fsPath(wf.uri)}`, enums_1.LogCategory.CommandProcesses);
-        try {
-            sdk_1.markProjectCreationStarted();
-            const success = yield createDartProject(fs_1.fsPath(wf.uri), template.name);
-            if (success) {
-                logger.info(`Fetching packages for newly-created project`, enums_1.LogCategory.CommandProcesses);
-                yield vs.commands.executeCommand("dart.getPackages", wf.uri);
-                handleDartWelcome(wf, template);
-                logger.info(`Finished creating new project!`, enums_1.LogCategory.CommandProcesses);
-            }
-            else {
-                logger.info(`Failed to create new project`, enums_1.LogCategory.CommandProcesses);
-            }
-        }
-        finally {
-            sdk_1.markProjectCreationEnded();
-        }
-    });
-}
-function handleFlutterCreateTrigger(wf) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const flutterTriggerFile = path.join(fs_1.fsPath(wf.uri), constants_1.FLUTTER_CREATE_PROJECT_TRIGGER_FILE);
-        if (!fs.existsSync(flutterTriggerFile))
-            return;
-        const jsonString = fs.readFileSync(flutterTriggerFile).toString().trim();
-        const json = jsonString ? JSON.parse(jsonString) : undefined;
-        fs.unlinkSync(flutterTriggerFile);
-        try {
-            sdk_1.markProjectCreationStarted();
-            const success = yield createFlutterProject(fs_1.fsPath(wf.uri), json);
-            if (success)
-                handleFlutterWelcome(wf, json);
-        }
-        finally {
-            sdk_1.markProjectCreationEnded();
-        }
-    });
-}
-function createDartProject(projectPath, templateName) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const code = yield vs.commands.executeCommand("_dart.create", projectPath, templateName);
-        return code === 0;
-    });
-}
-function createFlutterProject(projectPath, triggerData) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const projectName = (triggerData === null || triggerData === void 0 ? void 0 : triggerData.sample) ? "sample" : undefined;
-        const code = yield vs.commands.executeCommand("_flutter.create", projectPath, projectName, triggerData);
-        return code === 0;
-    });
-}
-function handleFlutterWelcome(workspaceFolder, triggerData) {
-    const entryFile = path.join(fs_1.fsPath(workspaceFolder.uri), "lib/main.dart");
-    openFile(entryFile);
-    if (triggerData === null || triggerData === void 0 ? void 0 : triggerData.sample)
-        vs.window.showInformationMessage(`${triggerData.sample} sample ready! Connect a device and press F5 to run.`);
-    else
-        vs.window.showInformationMessage("Your Flutter project is ready! Connect a device and press F5 to start running.");
-}
-function handleDartWelcome(workspaceFolder, template) {
-    const workspacePath = fs_1.fsPath(workspaceFolder.uri);
-    const projectName = path.basename(workspacePath);
-    const entryFile = path.join(workspacePath, template.entrypoint.replace("__projectName__", projectName));
-    openFile(entryFile);
-    vs.window.showInformationMessage(`${template.label} project ready!`);
-}
-/// Opens a file, but does it in a setTimeout to work around VS Code reveal bug
-/// https://github.com/Microsoft/vscode/issues/71588#event-2252962973
-function openFile(entryFile) {
-    if (!fs.existsSync(entryFile))
-        return;
-    // TODO: Remove this setTimeout when it's no longer required.
-    setTimeout(() => {
-        vs.commands.executeCommand("vscode.open", vs.Uri.file(entryFile));
-    }, 100);
-}
-
-
-/***/ }),
-
 /***/ "./src/extension/utils.ts":
 /*!********************************!*\
   !*** ./src/extension/utils.ts ***!
@@ -5372,15 +5091,12 @@ function promptToReloadExtension(prompt, buttonText, offerLog) {
     return __awaiter(this, void 0, void 0, function* () {
         const restartAction = buttonText || "Reload";
         const actions = offerLog ? [restartAction, constants_1.showLogAction] : [restartAction];
-        const ringLogContents = ringLog.toString();
         let showPromptAgain = true;
-        const tempLogPath = path.join(os.tmpdir(), `log-${fs_1.getRandomInt(0x1000, 0x10000).toString(16)}.txt`);
         while (showPromptAgain) {
             showPromptAgain = false;
             const chosenAction = prompt && (yield vscode_1.window.showInformationMessage(prompt, ...actions));
             if (chosenAction === constants_1.showLogAction) {
                 showPromptAgain = true;
-                openLogContents(undefined, ringLogContents, tempLogPath);
             }
             else if (!prompt || chosenAction === restartAction) {
                 vscode_1.commands.executeCommand("_hetu.reloadExtension");
@@ -5389,7 +5105,7 @@ function promptToReloadExtension(prompt, buttonText, offerLog) {
     });
 }
 exports.promptToReloadExtension = promptToReloadExtension;
-const shouldLogTimings = false;
+const shouldLogTimings = true;
 const start = process.hrtime.bigint();
 let last = start;
 function pad(str, length) {
@@ -5597,41 +5313,6 @@ exports.RunProcessResult = RunProcessResult;
 
 /***/ }),
 
-/***/ "./src/extension/utils/vscode/terminals.ts":
-/*!*************************************************!*\
-  !*** ./src/extension/utils/vscode/terminals.ts ***!
-  \*************************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.writeToPseudoTerminal = void 0;
-const vs = __webpack_require__(/*! vscode */ "vscode");
-function writeToPseudoTerminal(messages) {
-    const emitter = new vs.EventEmitter();
-    const pseudoterminal = {
-        close: () => { },
-        onDidWrite: emitter.event,
-        open: () => {
-            for (const output of messages) {
-                if (output)
-                    emitter.fire(output.replace(/\n/g, "\r\n"));
-            }
-        },
-    };
-    const currentTestTerminal = [
-        vs.window.createTerminal({ name: "Test Output", pty: pseudoterminal }),
-        emitter,
-    ];
-    currentTestTerminal[0].show();
-    return currentTestTerminal;
-}
-exports.writeToPseudoTerminal = writeToPseudoTerminal;
-
-
-/***/ }),
-
 /***/ "./src/shared/analysis/lsp/custom_protocol.ts":
 /*!****************************************************!*\
   !*** ./src/shared/analysis/lsp/custom_protocol.ts ***!
@@ -5751,7 +5432,7 @@ exports.Analyzer = Analyzer;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = exports.alwaysOpenAction = exports.openDevToolsAction = exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.analyzerSnapshotPath = exports.hetuVMPath = exports.getExecutableName = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = void 0;
-exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.devToolsPages = exports.widgetInspectorPage = exports.validClassNameRegex = exports.validMethodNameRegex = exports.cancelAction = exports.runFlutterCreateDotAction = exports.runFlutterCreateDotPrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.initializingFlutterMessage = exports.initializeSnapPrompt = exports.modifyingFilesOutsideWorkspaceInfoUrl = void 0;
+exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.validClassNameRegex = exports.validMethodNameRegex = exports.cancelAction = exports.runFlutterCreateDotAction = exports.runFlutterCreateDotPrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.initializingFlutterMessage = exports.initializeSnapPrompt = exports.modifyingFilesOutsideWorkspaceInfoUrl = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 exports.dartCodeExtensionIdentifier = "Dart-Code.dart-code";
 exports.flutterExtensionIdentifier = "Dart-Code.flutter";
@@ -5856,16 +5537,6 @@ exports.runFlutterCreateDotAction = "Run 'flutter create .'";
 exports.cancelAction = "Cancel";
 exports.validMethodNameRegex = new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$");
 exports.validClassNameRegex = exports.validMethodNameRegex;
-exports.widgetInspectorPage = { pageId: "inspector", commandId: "dart.openDevToolsInspector", title: "Widget Inspector" };
-exports.devToolsPages = [
-    // First entry is the default page.
-    exports.widgetInspectorPage,
-    { pageId: "cpu-profiler", commandId: "dart.openDevToolsCpuProfiler", legacyPageId: "performance", title: "CPU Profiler" },
-    { pageId: "memory", commandId: "dart.openDevToolsMemory", title: "Memory" },
-    { pageId: "performance", commandId: "dart.openDevToolsPerformance", legacyPageId: "timeline", title: "Performance" },
-    { pageId: "network", commandId: "dart.openDevToolsNetwork", title: "Network" },
-    { pageId: "logging", commandId: "dart.openDevToolsLogging", title: "Logging" },
-];
 exports.dartRecommendedConfig = {
     // Automatically format code on save and during typing of certain characters
     // (like `;` and `}`).
@@ -6262,7 +5933,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.disposeAll = exports.escapeDartString = exports.generateTestNameFromFileName = exports.clamp = exports.asHex = exports.asHexColor = exports.notNullOrUndefined = exports.notNull = exports.notUndefined = exports.BufferedLogger = exports.errorString = exports.usingCustomScript = exports.isStableSdk = exports.pubVersionIsAtLeast = exports.versionIsAtLeast = exports.isDartSdkFromFlutter = exports.uriToFilePath = exports.findFileInAncestor = exports.PromiseCompleter = exports.escapeRegExp = exports.filenameSafe = exports.flatMapAsync = exports.flatMap = exports.uniq = void 0;
+exports.disposeAll = exports.escapeDartString = exports.generateTestNameFromFileName = exports.clamp = exports.asHex = exports.asHexColor = exports.notNullOrUndefined = exports.notNull = exports.notUndefined = exports.BufferedLogger = exports.errorString = exports.usingCustomScript = exports.isStableSdk = exports.versionIsAtLeast = exports.uriToFilePath = exports.findFileInAncestor = exports.PromiseCompleter = exports.escapeRegExp = exports.filenameSafe = exports.flatMapAsync = exports.flatMap = exports.uniq = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 const path = __webpack_require__(/*! path */ "path");
 const semver = __webpack_require__(/*! semver */ "./node_modules/semver/index.js");
@@ -6336,36 +6007,10 @@ function uriToFilePath(uri, returnWindowsPath = constants_1.isWin) {
     return filePath;
 }
 exports.uriToFilePath = uriToFilePath;
-function isDartSdkFromFlutter(dartSdkPath) {
-    const possibleFlutterSdkPath = path.join(path.dirname(path.dirname(path.dirname(dartSdkPath))), "bin");
-    return fs.existsSync(path.join(possibleFlutterSdkPath, constants_1.executableNames.flutter));
-}
-exports.isDartSdkFromFlutter = isDartSdkFromFlutter;
 function versionIsAtLeast(inputVersion, requiredVersion) {
     return semver.gte(inputVersion, requiredVersion);
 }
 exports.versionIsAtLeast = versionIsAtLeast;
-function pubVersionIsAtLeast(inputVersion, requiredVersion) {
-    // Standard semver gt/lt
-    if (semver.gt(inputVersion, requiredVersion))
-        return true;
-    else if (semver.lt(inputVersion, requiredVersion))
-        return false;
-    // If the versions are equal, we need to handle build metadata like pub does.
-    // https://github.com/dart-lang/pub_semver/
-    // If only one of them has build metadata, it's newest.
-    if (inputVersion.indexOf("+") !== -1 && requiredVersion.indexOf("+") === -1)
-        return true;
-    if (inputVersion.indexOf("+") === -1 && requiredVersion.indexOf("+") !== -1)
-        return false;
-    // Otherwise, since they're both otherwise equal and both have build
-    // metadata we can treat the build metadata like pre-release by converting
-    // it to pre-release (with -) or appending it to existing pre-release.
-    inputVersion = inputVersion.replace("+", inputVersion.indexOf("-") === -1 ? "-" : ".");
-    requiredVersion = requiredVersion.replace("+", requiredVersion.indexOf("-") === -1 ? "-" : ".");
-    return versionIsAtLeast(inputVersion, requiredVersion);
-}
-exports.pubVersionIsAtLeast = pubVersionIsAtLeast;
 function isStableSdk(sdkVersion) {
     // We'll consider empty versions as dev; stable versions will likely always
     // be shipped with valid version files.
@@ -6788,54 +6433,6 @@ exports.waitFor = waitFor;
 
 /***/ }),
 
-/***/ "./src/shared/vscode/extension_utils.ts":
-/*!**********************************************!*\
-  !*** ./src/shared/vscode/extension_utils.ts ***!
-  \**********************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.cleanDartdoc = exports.checkHasFlutterExtension = exports.readJson = exports.docsIconPathFormat = exports.hasFlutterExtension = exports.isDevExtension = exports.vsCodeVersionConstraint = exports.extensionVersion = exports.extensionPath = void 0;
-const fs = __webpack_require__(/*! fs */ "fs");
-const path = __webpack_require__(/*! path */ "path");
-const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
-const constants_1 = __webpack_require__(/*! ../constants */ "./src/shared/constants.ts");
-const dartdoc = __webpack_require__(Object(function webpackMissingModule() { var e = new Error("Cannot find module '../utils/dartdocs'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()));
-exports.extensionPath = vscode_1.extensions.getExtension(constants_1.dartCodeExtensionIdentifier).extensionPath;
-exports.extensionVersion = getExtensionVersion();
-exports.vsCodeVersionConstraint = getVsCodeVersionConstraint();
-exports.isDevExtension = checkIsDevExtension();
-exports.hasFlutterExtension = checkHasFlutterExtension();
-exports.docsIconPathFormat = vscode_1.Uri.file(path.join(exports.extensionPath, "media/doc-icons/")).toString() + "$1%402x.png";
-function readJson(file) {
-    return JSON.parse(fs.readFileSync(file).toString());
-}
-exports.readJson = readJson;
-function getExtensionVersion() {
-    const packageJson = readJson(path.join(exports.extensionPath, "package.json"));
-    return packageJson.version;
-}
-function getVsCodeVersionConstraint() {
-    const packageJson = readJson(path.join(exports.extensionPath, "package.json"));
-    return packageJson.engines.vscode;
-}
-function checkIsDevExtension() {
-    return exports.extensionVersion.endsWith("-dev");
-}
-function checkHasFlutterExtension() {
-    return vscode_1.extensions.getExtension(constants_1.flutterExtensionIdentifier) !== undefined;
-}
-exports.checkHasFlutterExtension = checkHasFlutterExtension;
-function cleanDartdoc(doc) {
-    return dartdoc.cleanDartdoc(doc, exports.docsIconPathFormat);
-}
-exports.cleanDartdoc = cleanDartdoc;
-
-
-/***/ }),
-
 /***/ "./src/shared/vscode/uri_handlers/uri_handler.ts":
 /*!*******************************************************!*\
   !*** ./src/shared/vscode/uri_handlers/uri_handler.ts ***!
@@ -6891,7 +6488,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createWatcher = exports.firstEditorColumn = exports.firstNonEditorColumn = exports.envUtils = exports.treeLabel = exports.warnIfPathCaseMismatch = exports.trimTrailingSlashes = exports.showCode = exports.toRangeOnLine = exports.lspToPosition = exports.toPosition = exports.lspToRange = exports.toRange = exports.isDartWorkspaceFolder = exports.getAllProjectFolders = exports.getDartWorkspaceFolders = exports.isRunningLocally = exports.SourceSortMembersCodeActionKind = void 0;
+exports.createWatcher = exports.firstEditorColumn = exports.firstNonEditorColumn = exports.envUtils = exports.warnIfPathCaseMismatch = exports.trimTrailingSlashes = exports.showCode = exports.toRangeOnLine = exports.lspToPosition = exports.toPosition = exports.lspToRange = exports.toRange = exports.isDartWorkspaceFolder = exports.getAllProjectFolders = exports.getDartWorkspaceFolders = exports.isRunningLocally = exports.SourceSortMembersCodeActionKind = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 const url_1 = __webpack_require__(/*! url */ "url");
 const vs = __webpack_require__(/*! vscode */ "vscode");
@@ -7014,17 +6611,15 @@ class EnvUtils {
             const fakeAuthority = `${fakeHostname}:${fakePort}`;
             const uriToMap = uri.with({ scheme: fakeScheme, authority: fakeAuthority });
             logger.info(`Mapping URL: ${uriToMap.toString()}`);
-            const mappedUri = yield vscode_1.env.asExternalUri(uriToMap);
-            logger.info(`Mapped URL: ${mappedUri.toString()}`);
             // Now we need to map the scheme back to WS if that's what was originally asked for, however
             // we need to take into account whether asExternalUri pushed is up to secure, so use
             // the http/https to decide which to go back to.
-            let newScheme = mappedUri.scheme;
+            let newScheme = uriToMap.scheme;
             if (isWebSocket)
                 // Note: We use mappedUri.scheme here and not isSecure because we
                 // care if the *exposed* URI is secure.
-                newScheme = mappedUri.scheme === "https" ? "wss" : "ws";
-            const finalUri = uriToString(mappedUri.with({ scheme: newScheme }));
+                newScheme = uriToMap.scheme === "https" ? "wss" : "ws";
+            const finalUri = uriToString(uriToMap.with({ scheme: newScheme }));
             logger.info(`Final URI: ${finalUri}`);
             const finalUrl = new url_1.URL(finalUri).toString();
             logger.info(`Final URL: ${finalUrl}`);
@@ -7037,12 +6632,6 @@ function uriToString(uri) {
         .replace(/%24/g, "$")
         .replace(/%5B/g, "[");
 }
-function treeLabel(item) {
-    if (!item.label || typeof item.label === "string")
-        return item.label;
-    return item.label.label;
-}
-exports.treeLabel = treeLabel;
 exports.envUtils = new EnvUtils();
 function usedEditorColumns() {
     return new Set(vs.window.visibleTextEditors.map((e) => e.viewColumn).filter(utils_1.notUndefined));
@@ -16665,7 +16254,7 @@ exports.SettingMonitor = exports.LanguageClient = exports.TransportKind = void 0
 const cp = __webpack_require__(/*! child_process */ "child_process");
 const fs = __webpack_require__(/*! fs */ "fs");
 const path = __webpack_require__(/*! path */ "path");
-const SemVer = __webpack_require__(/*! semver */ "./node_modules/semver/index.js");
+const SemVer = __webpack_require__(/*! semver */ "./node_modules/vscode-languageclient/node_modules/semver/index.js");
 const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
 const Is = __webpack_require__(/*! ../common/utils/is */ "./node_modules/vscode-languageclient/lib/common/utils/is.js");
 const commonClient_1 = __webpack_require__(/*! ../common/commonClient */ "./node_modules/vscode-languageclient/lib/common/commonClient.js");
@@ -17209,6 +16798,2406 @@ exports.terminate = terminate;
 
 
 module.exports = __webpack_require__(/*! ./lib/node/main */ "./node_modules/vscode-languageclient/lib/node/main.js");
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/classes/comparator.js":
+/*!**************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/classes/comparator.js ***!
+  \**************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const ANY = Symbol('SemVer ANY')
+// hoisted class for cyclic dependency
+class Comparator {
+  static get ANY () {
+    return ANY
+  }
+  constructor (comp, options) {
+    options = parseOptions(options)
+
+    if (comp instanceof Comparator) {
+      if (comp.loose === !!options.loose) {
+        return comp
+      } else {
+        comp = comp.value
+      }
+    }
+
+    debug('comparator', comp, options)
+    this.options = options
+    this.loose = !!options.loose
+    this.parse(comp)
+
+    if (this.semver === ANY) {
+      this.value = ''
+    } else {
+      this.value = this.operator + this.semver.version
+    }
+
+    debug('comp', this)
+  }
+
+  parse (comp) {
+    const r = this.options.loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR]
+    const m = comp.match(r)
+
+    if (!m) {
+      throw new TypeError(`Invalid comparator: ${comp}`)
+    }
+
+    this.operator = m[1] !== undefined ? m[1] : ''
+    if (this.operator === '=') {
+      this.operator = ''
+    }
+
+    // if it literally is just '>' or '' then allow anything.
+    if (!m[2]) {
+      this.semver = ANY
+    } else {
+      this.semver = new SemVer(m[2], this.options.loose)
+    }
+  }
+
+  toString () {
+    return this.value
+  }
+
+  test (version) {
+    debug('Comparator.test', version, this.options.loose)
+
+    if (this.semver === ANY || version === ANY) {
+      return true
+    }
+
+    if (typeof version === 'string') {
+      try {
+        version = new SemVer(version, this.options)
+      } catch (er) {
+        return false
+      }
+    }
+
+    return cmp(version, this.operator, this.semver, this.options)
+  }
+
+  intersects (comp, options) {
+    if (!(comp instanceof Comparator)) {
+      throw new TypeError('a Comparator is required')
+    }
+
+    if (!options || typeof options !== 'object') {
+      options = {
+        loose: !!options,
+        includePrerelease: false
+      }
+    }
+
+    if (this.operator === '') {
+      if (this.value === '') {
+        return true
+      }
+      return new Range(comp.value, options).test(this.value)
+    } else if (comp.operator === '') {
+      if (comp.value === '') {
+        return true
+      }
+      return new Range(this.value, options).test(comp.semver)
+    }
+
+    const sameDirectionIncreasing =
+      (this.operator === '>=' || this.operator === '>') &&
+      (comp.operator === '>=' || comp.operator === '>')
+    const sameDirectionDecreasing =
+      (this.operator === '<=' || this.operator === '<') &&
+      (comp.operator === '<=' || comp.operator === '<')
+    const sameSemVer = this.semver.version === comp.semver.version
+    const differentDirectionsInclusive =
+      (this.operator === '>=' || this.operator === '<=') &&
+      (comp.operator === '>=' || comp.operator === '<=')
+    const oppositeDirectionsLessThan =
+      cmp(this.semver, '<', comp.semver, options) &&
+      (this.operator === '>=' || this.operator === '>') &&
+        (comp.operator === '<=' || comp.operator === '<')
+    const oppositeDirectionsGreaterThan =
+      cmp(this.semver, '>', comp.semver, options) &&
+      (this.operator === '<=' || this.operator === '<') &&
+        (comp.operator === '>=' || comp.operator === '>')
+
+    return (
+      sameDirectionIncreasing ||
+      sameDirectionDecreasing ||
+      (sameSemVer && differentDirectionsInclusive) ||
+      oppositeDirectionsLessThan ||
+      oppositeDirectionsGreaterThan
+    )
+  }
+}
+
+module.exports = Comparator
+
+const parseOptions = __webpack_require__(/*! ../internal/parse-options */ "./node_modules/vscode-languageclient/node_modules/semver/internal/parse-options.js")
+const {re, t} = __webpack_require__(/*! ../internal/re */ "./node_modules/vscode-languageclient/node_modules/semver/internal/re.js")
+const cmp = __webpack_require__(/*! ../functions/cmp */ "./node_modules/vscode-languageclient/node_modules/semver/functions/cmp.js")
+const debug = __webpack_require__(/*! ../internal/debug */ "./node_modules/vscode-languageclient/node_modules/semver/internal/debug.js")
+const SemVer = __webpack_require__(/*! ./semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const Range = __webpack_require__(/*! ./range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/classes/range.js ***!
+  \*********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+// hoisted class for cyclic dependency
+class Range {
+  constructor (range, options) {
+    options = parseOptions(options)
+
+    if (range instanceof Range) {
+      if (
+        range.loose === !!options.loose &&
+        range.includePrerelease === !!options.includePrerelease
+      ) {
+        return range
+      } else {
+        return new Range(range.raw, options)
+      }
+    }
+
+    if (range instanceof Comparator) {
+      // just put it in the set and return
+      this.raw = range.value
+      this.set = [[range]]
+      this.format()
+      return this
+    }
+
+    this.options = options
+    this.loose = !!options.loose
+    this.includePrerelease = !!options.includePrerelease
+
+    // First, split based on boolean or ||
+    this.raw = range
+    this.set = range
+      .split(/\s*\|\|\s*/)
+      // map the range to a 2d array of comparators
+      .map(range => this.parseRange(range.trim()))
+      // throw out any comparator lists that are empty
+      // this generally means that it was not a valid range, which is allowed
+      // in loose mode, but will still throw if the WHOLE range is invalid.
+      .filter(c => c.length)
+
+    if (!this.set.length) {
+      throw new TypeError(`Invalid SemVer Range: ${range}`)
+    }
+
+    // if we have any that are not the null set, throw out null sets.
+    if (this.set.length > 1) {
+      // keep the first one, in case they're all null sets
+      const first = this.set[0]
+      this.set = this.set.filter(c => !isNullSet(c[0]))
+      if (this.set.length === 0)
+        this.set = [first]
+      else if (this.set.length > 1) {
+        // if we have any that are *, then the range is just *
+        for (const c of this.set) {
+          if (c.length === 1 && isAny(c[0])) {
+            this.set = [c]
+            break
+          }
+        }
+      }
+    }
+
+    this.format()
+  }
+
+  format () {
+    this.range = this.set
+      .map((comps) => {
+        return comps.join(' ').trim()
+      })
+      .join('||')
+      .trim()
+    return this.range
+  }
+
+  toString () {
+    return this.range
+  }
+
+  parseRange (range) {
+    range = range.trim()
+
+    // memoize range parsing for performance.
+    // this is a very hot path, and fully deterministic.
+    const memoOpts = Object.keys(this.options).join(',')
+    const memoKey = `parseRange:${memoOpts}:${range}`
+    const cached = cache.get(memoKey)
+    if (cached)
+      return cached
+
+    const loose = this.options.loose
+    // `1.2.3 - 1.2.4` => `>=1.2.3 <=1.2.4`
+    const hr = loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE]
+    range = range.replace(hr, hyphenReplace(this.options.includePrerelease))
+    debug('hyphen replace', range)
+    // `> 1.2.3 < 1.2.5` => `>1.2.3 <1.2.5`
+    range = range.replace(re[t.COMPARATORTRIM], comparatorTrimReplace)
+    debug('comparator trim', range, re[t.COMPARATORTRIM])
+
+    // `~ 1.2.3` => `~1.2.3`
+    range = range.replace(re[t.TILDETRIM], tildeTrimReplace)
+
+    // `^ 1.2.3` => `^1.2.3`
+    range = range.replace(re[t.CARETTRIM], caretTrimReplace)
+
+    // normalize spaces
+    range = range.split(/\s+/).join(' ')
+
+    // At this point, the range is completely trimmed and
+    // ready to be split into comparators.
+
+    const compRe = loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR]
+    const rangeList = range
+      .split(' ')
+      .map(comp => parseComparator(comp, this.options))
+      .join(' ')
+      .split(/\s+/)
+      // >=0.0.0 is equivalent to *
+      .map(comp => replaceGTE0(comp, this.options))
+      // in loose mode, throw out any that are not valid comparators
+      .filter(this.options.loose ? comp => !!comp.match(compRe) : () => true)
+      .map(comp => new Comparator(comp, this.options))
+
+    // if any comparators are the null set, then replace with JUST null set
+    // if more than one comparator, remove any * comparators
+    // also, don't include the same comparator more than once
+    const l = rangeList.length
+    const rangeMap = new Map()
+    for (const comp of rangeList) {
+      if (isNullSet(comp))
+        return [comp]
+      rangeMap.set(comp.value, comp)
+    }
+    if (rangeMap.size > 1 && rangeMap.has(''))
+      rangeMap.delete('')
+
+    const result = [...rangeMap.values()]
+    cache.set(memoKey, result)
+    return result
+  }
+
+  intersects (range, options) {
+    if (!(range instanceof Range)) {
+      throw new TypeError('a Range is required')
+    }
+
+    return this.set.some((thisComparators) => {
+      return (
+        isSatisfiable(thisComparators, options) &&
+        range.set.some((rangeComparators) => {
+          return (
+            isSatisfiable(rangeComparators, options) &&
+            thisComparators.every((thisComparator) => {
+              return rangeComparators.every((rangeComparator) => {
+                return thisComparator.intersects(rangeComparator, options)
+              })
+            })
+          )
+        })
+      )
+    })
+  }
+
+  // if ANY of the sets match ALL of its comparators, then pass
+  test (version) {
+    if (!version) {
+      return false
+    }
+
+    if (typeof version === 'string') {
+      try {
+        version = new SemVer(version, this.options)
+      } catch (er) {
+        return false
+      }
+    }
+
+    for (let i = 0; i < this.set.length; i++) {
+      if (testSet(this.set[i], version, this.options)) {
+        return true
+      }
+    }
+    return false
+  }
+}
+module.exports = Range
+
+const LRU = __webpack_require__(/*! lru-cache */ "./node_modules/lru-cache/index.js")
+const cache = new LRU({ max: 1000 })
+
+const parseOptions = __webpack_require__(/*! ../internal/parse-options */ "./node_modules/vscode-languageclient/node_modules/semver/internal/parse-options.js")
+const Comparator = __webpack_require__(/*! ./comparator */ "./node_modules/vscode-languageclient/node_modules/semver/classes/comparator.js")
+const debug = __webpack_require__(/*! ../internal/debug */ "./node_modules/vscode-languageclient/node_modules/semver/internal/debug.js")
+const SemVer = __webpack_require__(/*! ./semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const {
+  re,
+  t,
+  comparatorTrimReplace,
+  tildeTrimReplace,
+  caretTrimReplace
+} = __webpack_require__(/*! ../internal/re */ "./node_modules/vscode-languageclient/node_modules/semver/internal/re.js")
+
+const isNullSet = c => c.value === '<0.0.0-0'
+const isAny = c => c.value === ''
+
+// take a set of comparators and determine whether there
+// exists a version which can satisfy it
+const isSatisfiable = (comparators, options) => {
+  let result = true
+  const remainingComparators = comparators.slice()
+  let testComparator = remainingComparators.pop()
+
+  while (result && remainingComparators.length) {
+    result = remainingComparators.every((otherComparator) => {
+      return testComparator.intersects(otherComparator, options)
+    })
+
+    testComparator = remainingComparators.pop()
+  }
+
+  return result
+}
+
+// comprised of xranges, tildes, stars, and gtlt's at this point.
+// already replaced the hyphen ranges
+// turn into a set of JUST comparators.
+const parseComparator = (comp, options) => {
+  debug('comp', comp, options)
+  comp = replaceCarets(comp, options)
+  debug('caret', comp)
+  comp = replaceTildes(comp, options)
+  debug('tildes', comp)
+  comp = replaceXRanges(comp, options)
+  debug('xrange', comp)
+  comp = replaceStars(comp, options)
+  debug('stars', comp)
+  return comp
+}
+
+const isX = id => !id || id.toLowerCase() === 'x' || id === '*'
+
+// ~, ~> --> * (any, kinda silly)
+// ~2, ~2.x, ~2.x.x, ~>2, ~>2.x ~>2.x.x --> >=2.0.0 <3.0.0-0
+// ~2.0, ~2.0.x, ~>2.0, ~>2.0.x --> >=2.0.0 <2.1.0-0
+// ~1.2, ~1.2.x, ~>1.2, ~>1.2.x --> >=1.2.0 <1.3.0-0
+// ~1.2.3, ~>1.2.3 --> >=1.2.3 <1.3.0-0
+// ~1.2.0, ~>1.2.0 --> >=1.2.0 <1.3.0-0
+const replaceTildes = (comp, options) =>
+  comp.trim().split(/\s+/).map((comp) => {
+    return replaceTilde(comp, options)
+  }).join(' ')
+
+const replaceTilde = (comp, options) => {
+  const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE]
+  return comp.replace(r, (_, M, m, p, pr) => {
+    debug('tilde', comp, _, M, m, p, pr)
+    let ret
+
+    if (isX(M)) {
+      ret = ''
+    } else if (isX(m)) {
+      ret = `>=${M}.0.0 <${+M + 1}.0.0-0`
+    } else if (isX(p)) {
+      // ~1.2 == >=1.2.0 <1.3.0-0
+      ret = `>=${M}.${m}.0 <${M}.${+m + 1}.0-0`
+    } else if (pr) {
+      debug('replaceTilde pr', pr)
+      ret = `>=${M}.${m}.${p}-${pr
+      } <${M}.${+m + 1}.0-0`
+    } else {
+      // ~1.2.3 == >=1.2.3 <1.3.0-0
+      ret = `>=${M}.${m}.${p
+      } <${M}.${+m + 1}.0-0`
+    }
+
+    debug('tilde return', ret)
+    return ret
+  })
+}
+
+// ^ --> * (any, kinda silly)
+// ^2, ^2.x, ^2.x.x --> >=2.0.0 <3.0.0-0
+// ^2.0, ^2.0.x --> >=2.0.0 <3.0.0-0
+// ^1.2, ^1.2.x --> >=1.2.0 <2.0.0-0
+// ^1.2.3 --> >=1.2.3 <2.0.0-0
+// ^1.2.0 --> >=1.2.0 <2.0.0-0
+const replaceCarets = (comp, options) =>
+  comp.trim().split(/\s+/).map((comp) => {
+    return replaceCaret(comp, options)
+  }).join(' ')
+
+const replaceCaret = (comp, options) => {
+  debug('caret', comp, options)
+  const r = options.loose ? re[t.CARETLOOSE] : re[t.CARET]
+  const z = options.includePrerelease ? '-0' : ''
+  return comp.replace(r, (_, M, m, p, pr) => {
+    debug('caret', comp, _, M, m, p, pr)
+    let ret
+
+    if (isX(M)) {
+      ret = ''
+    } else if (isX(m)) {
+      ret = `>=${M}.0.0${z} <${+M + 1}.0.0-0`
+    } else if (isX(p)) {
+      if (M === '0') {
+        ret = `>=${M}.${m}.0${z} <${M}.${+m + 1}.0-0`
+      } else {
+        ret = `>=${M}.${m}.0${z} <${+M + 1}.0.0-0`
+      }
+    } else if (pr) {
+      debug('replaceCaret pr', pr)
+      if (M === '0') {
+        if (m === '0') {
+          ret = `>=${M}.${m}.${p}-${pr
+          } <${M}.${m}.${+p + 1}-0`
+        } else {
+          ret = `>=${M}.${m}.${p}-${pr
+          } <${M}.${+m + 1}.0-0`
+        }
+      } else {
+        ret = `>=${M}.${m}.${p}-${pr
+        } <${+M + 1}.0.0-0`
+      }
+    } else {
+      debug('no pr')
+      if (M === '0') {
+        if (m === '0') {
+          ret = `>=${M}.${m}.${p
+          }${z} <${M}.${m}.${+p + 1}-0`
+        } else {
+          ret = `>=${M}.${m}.${p
+          }${z} <${M}.${+m + 1}.0-0`
+        }
+      } else {
+        ret = `>=${M}.${m}.${p
+        } <${+M + 1}.0.0-0`
+      }
+    }
+
+    debug('caret return', ret)
+    return ret
+  })
+}
+
+const replaceXRanges = (comp, options) => {
+  debug('replaceXRanges', comp, options)
+  return comp.split(/\s+/).map((comp) => {
+    return replaceXRange(comp, options)
+  }).join(' ')
+}
+
+const replaceXRange = (comp, options) => {
+  comp = comp.trim()
+  const r = options.loose ? re[t.XRANGELOOSE] : re[t.XRANGE]
+  return comp.replace(r, (ret, gtlt, M, m, p, pr) => {
+    debug('xRange', comp, ret, gtlt, M, m, p, pr)
+    const xM = isX(M)
+    const xm = xM || isX(m)
+    const xp = xm || isX(p)
+    const anyX = xp
+
+    if (gtlt === '=' && anyX) {
+      gtlt = ''
+    }
+
+    // if we're including prereleases in the match, then we need
+    // to fix this to -0, the lowest possible prerelease value
+    pr = options.includePrerelease ? '-0' : ''
+
+    if (xM) {
+      if (gtlt === '>' || gtlt === '<') {
+        // nothing is allowed
+        ret = '<0.0.0-0'
+      } else {
+        // nothing is forbidden
+        ret = '*'
+      }
+    } else if (gtlt && anyX) {
+      // we know patch is an x, because we have any x at all.
+      // replace X with 0
+      if (xm) {
+        m = 0
+      }
+      p = 0
+
+      if (gtlt === '>') {
+        // >1 => >=2.0.0
+        // >1.2 => >=1.3.0
+        gtlt = '>='
+        if (xm) {
+          M = +M + 1
+          m = 0
+          p = 0
+        } else {
+          m = +m + 1
+          p = 0
+        }
+      } else if (gtlt === '<=') {
+        // <=0.7.x is actually <0.8.0, since any 0.7.x should
+        // pass.  Similarly, <=7.x is actually <8.0.0, etc.
+        gtlt = '<'
+        if (xm) {
+          M = +M + 1
+        } else {
+          m = +m + 1
+        }
+      }
+
+      if (gtlt === '<')
+        pr = '-0'
+
+      ret = `${gtlt + M}.${m}.${p}${pr}`
+    } else if (xm) {
+      ret = `>=${M}.0.0${pr} <${+M + 1}.0.0-0`
+    } else if (xp) {
+      ret = `>=${M}.${m}.0${pr
+      } <${M}.${+m + 1}.0-0`
+    }
+
+    debug('xRange return', ret)
+
+    return ret
+  })
+}
+
+// Because * is AND-ed with everything else in the comparator,
+// and '' means "any version", just remove the *s entirely.
+const replaceStars = (comp, options) => {
+  debug('replaceStars', comp, options)
+  // Looseness is ignored here.  star is always as loose as it gets!
+  return comp.trim().replace(re[t.STAR], '')
+}
+
+const replaceGTE0 = (comp, options) => {
+  debug('replaceGTE0', comp, options)
+  return comp.trim()
+    .replace(re[options.includePrerelease ? t.GTE0PRE : t.GTE0], '')
+}
+
+// This function is passed to string.replace(re[t.HYPHENRANGE])
+// M, m, patch, prerelease, build
+// 1.2 - 3.4.5 => >=1.2.0 <=3.4.5
+// 1.2.3 - 3.4 => >=1.2.0 <3.5.0-0 Any 3.4.x will do
+// 1.2 - 3.4 => >=1.2.0 <3.5.0-0
+const hyphenReplace = incPr => ($0,
+  from, fM, fm, fp, fpr, fb,
+  to, tM, tm, tp, tpr, tb) => {
+  if (isX(fM)) {
+    from = ''
+  } else if (isX(fm)) {
+    from = `>=${fM}.0.0${incPr ? '-0' : ''}`
+  } else if (isX(fp)) {
+    from = `>=${fM}.${fm}.0${incPr ? '-0' : ''}`
+  } else if (fpr) {
+    from = `>=${from}`
+  } else {
+    from = `>=${from}${incPr ? '-0' : ''}`
+  }
+
+  if (isX(tM)) {
+    to = ''
+  } else if (isX(tm)) {
+    to = `<${+tM + 1}.0.0-0`
+  } else if (isX(tp)) {
+    to = `<${tM}.${+tm + 1}.0-0`
+  } else if (tpr) {
+    to = `<=${tM}.${tm}.${tp}-${tpr}`
+  } else if (incPr) {
+    to = `<${tM}.${tm}.${+tp + 1}-0`
+  } else {
+    to = `<=${to}`
+  }
+
+  return (`${from} ${to}`).trim()
+}
+
+const testSet = (set, version, options) => {
+  for (let i = 0; i < set.length; i++) {
+    if (!set[i].test(version)) {
+      return false
+    }
+  }
+
+  if (version.prerelease.length && !options.includePrerelease) {
+    // Find the set of versions that are allowed to have prereleases
+    // For example, ^1.2.3-pr.1 desugars to >=1.2.3-pr.1 <2.0.0
+    // That should allow `1.2.3-pr.2` to pass.
+    // However, `1.2.4-alpha.notready` should NOT be allowed,
+    // even though it's within the range set by the comparators.
+    for (let i = 0; i < set.length; i++) {
+      debug(set[i].semver)
+      if (set[i].semver === Comparator.ANY) {
+        continue
+      }
+
+      if (set[i].semver.prerelease.length > 0) {
+        const allowed = set[i].semver
+        if (allowed.major === version.major &&
+            allowed.minor === version.minor &&
+            allowed.patch === version.patch) {
+          return true
+        }
+      }
+    }
+
+    // Version has a -pre, but it's not one of the ones we like.
+    return false
+  }
+
+  return true
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js":
+/*!**********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js ***!
+  \**********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const debug = __webpack_require__(/*! ../internal/debug */ "./node_modules/vscode-languageclient/node_modules/semver/internal/debug.js")
+const { MAX_LENGTH, MAX_SAFE_INTEGER } = __webpack_require__(/*! ../internal/constants */ "./node_modules/vscode-languageclient/node_modules/semver/internal/constants.js")
+const { re, t } = __webpack_require__(/*! ../internal/re */ "./node_modules/vscode-languageclient/node_modules/semver/internal/re.js")
+
+const parseOptions = __webpack_require__(/*! ../internal/parse-options */ "./node_modules/vscode-languageclient/node_modules/semver/internal/parse-options.js")
+const { compareIdentifiers } = __webpack_require__(/*! ../internal/identifiers */ "./node_modules/vscode-languageclient/node_modules/semver/internal/identifiers.js")
+class SemVer {
+  constructor (version, options) {
+    options = parseOptions(options)
+
+    if (version instanceof SemVer) {
+      if (version.loose === !!options.loose &&
+          version.includePrerelease === !!options.includePrerelease) {
+        return version
+      } else {
+        version = version.version
+      }
+    } else if (typeof version !== 'string') {
+      throw new TypeError(`Invalid Version: ${version}`)
+    }
+
+    if (version.length > MAX_LENGTH) {
+      throw new TypeError(
+        `version is longer than ${MAX_LENGTH} characters`
+      )
+    }
+
+    debug('SemVer', version, options)
+    this.options = options
+    this.loose = !!options.loose
+    // this isn't actually relevant for versions, but keep it so that we
+    // don't run into trouble passing this.options around.
+    this.includePrerelease = !!options.includePrerelease
+
+    const m = version.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL])
+
+    if (!m) {
+      throw new TypeError(`Invalid Version: ${version}`)
+    }
+
+    this.raw = version
+
+    // these are actually numbers
+    this.major = +m[1]
+    this.minor = +m[2]
+    this.patch = +m[3]
+
+    if (this.major > MAX_SAFE_INTEGER || this.major < 0) {
+      throw new TypeError('Invalid major version')
+    }
+
+    if (this.minor > MAX_SAFE_INTEGER || this.minor < 0) {
+      throw new TypeError('Invalid minor version')
+    }
+
+    if (this.patch > MAX_SAFE_INTEGER || this.patch < 0) {
+      throw new TypeError('Invalid patch version')
+    }
+
+    // numberify any prerelease numeric ids
+    if (!m[4]) {
+      this.prerelease = []
+    } else {
+      this.prerelease = m[4].split('.').map((id) => {
+        if (/^[0-9]+$/.test(id)) {
+          const num = +id
+          if (num >= 0 && num < MAX_SAFE_INTEGER) {
+            return num
+          }
+        }
+        return id
+      })
+    }
+
+    this.build = m[5] ? m[5].split('.') : []
+    this.format()
+  }
+
+  format () {
+    this.version = `${this.major}.${this.minor}.${this.patch}`
+    if (this.prerelease.length) {
+      this.version += `-${this.prerelease.join('.')}`
+    }
+    return this.version
+  }
+
+  toString () {
+    return this.version
+  }
+
+  compare (other) {
+    debug('SemVer.compare', this.version, this.options, other)
+    if (!(other instanceof SemVer)) {
+      if (typeof other === 'string' && other === this.version) {
+        return 0
+      }
+      other = new SemVer(other, this.options)
+    }
+
+    if (other.version === this.version) {
+      return 0
+    }
+
+    return this.compareMain(other) || this.comparePre(other)
+  }
+
+  compareMain (other) {
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options)
+    }
+
+    return (
+      compareIdentifiers(this.major, other.major) ||
+      compareIdentifiers(this.minor, other.minor) ||
+      compareIdentifiers(this.patch, other.patch)
+    )
+  }
+
+  comparePre (other) {
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options)
+    }
+
+    // NOT having a prerelease is > having one
+    if (this.prerelease.length && !other.prerelease.length) {
+      return -1
+    } else if (!this.prerelease.length && other.prerelease.length) {
+      return 1
+    } else if (!this.prerelease.length && !other.prerelease.length) {
+      return 0
+    }
+
+    let i = 0
+    do {
+      const a = this.prerelease[i]
+      const b = other.prerelease[i]
+      debug('prerelease compare', i, a, b)
+      if (a === undefined && b === undefined) {
+        return 0
+      } else if (b === undefined) {
+        return 1
+      } else if (a === undefined) {
+        return -1
+      } else if (a === b) {
+        continue
+      } else {
+        return compareIdentifiers(a, b)
+      }
+    } while (++i)
+  }
+
+  compareBuild (other) {
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options)
+    }
+
+    let i = 0
+    do {
+      const a = this.build[i]
+      const b = other.build[i]
+      debug('prerelease compare', i, a, b)
+      if (a === undefined && b === undefined) {
+        return 0
+      } else if (b === undefined) {
+        return 1
+      } else if (a === undefined) {
+        return -1
+      } else if (a === b) {
+        continue
+      } else {
+        return compareIdentifiers(a, b)
+      }
+    } while (++i)
+  }
+
+  // preminor will bump the version up to the next minor release, and immediately
+  // down to pre-release. premajor and prepatch work the same way.
+  inc (release, identifier) {
+    switch (release) {
+      case 'premajor':
+        this.prerelease.length = 0
+        this.patch = 0
+        this.minor = 0
+        this.major++
+        this.inc('pre', identifier)
+        break
+      case 'preminor':
+        this.prerelease.length = 0
+        this.patch = 0
+        this.minor++
+        this.inc('pre', identifier)
+        break
+      case 'prepatch':
+        // If this is already a prerelease, it will bump to the next version
+        // drop any prereleases that might already exist, since they are not
+        // relevant at this point.
+        this.prerelease.length = 0
+        this.inc('patch', identifier)
+        this.inc('pre', identifier)
+        break
+      // If the input is a non-prerelease version, this acts the same as
+      // prepatch.
+      case 'prerelease':
+        if (this.prerelease.length === 0) {
+          this.inc('patch', identifier)
+        }
+        this.inc('pre', identifier)
+        break
+
+      case 'major':
+        // If this is a pre-major version, bump up to the same major version.
+        // Otherwise increment major.
+        // 1.0.0-5 bumps to 1.0.0
+        // 1.1.0 bumps to 2.0.0
+        if (
+          this.minor !== 0 ||
+          this.patch !== 0 ||
+          this.prerelease.length === 0
+        ) {
+          this.major++
+        }
+        this.minor = 0
+        this.patch = 0
+        this.prerelease = []
+        break
+      case 'minor':
+        // If this is a pre-minor version, bump up to the same minor version.
+        // Otherwise increment minor.
+        // 1.2.0-5 bumps to 1.2.0
+        // 1.2.1 bumps to 1.3.0
+        if (this.patch !== 0 || this.prerelease.length === 0) {
+          this.minor++
+        }
+        this.patch = 0
+        this.prerelease = []
+        break
+      case 'patch':
+        // If this is not a pre-release version, it will increment the patch.
+        // If it is a pre-release it will bump up to the same patch version.
+        // 1.2.0-5 patches to 1.2.0
+        // 1.2.0 patches to 1.2.1
+        if (this.prerelease.length === 0) {
+          this.patch++
+        }
+        this.prerelease = []
+        break
+      // This probably shouldn't be used publicly.
+      // 1.0.0 'pre' would become 1.0.0-0 which is the wrong direction.
+      case 'pre':
+        if (this.prerelease.length === 0) {
+          this.prerelease = [0]
+        } else {
+          let i = this.prerelease.length
+          while (--i >= 0) {
+            if (typeof this.prerelease[i] === 'number') {
+              this.prerelease[i]++
+              i = -2
+            }
+          }
+          if (i === -1) {
+            // didn't increment anything
+            this.prerelease.push(0)
+          }
+        }
+        if (identifier) {
+          // 1.2.0-beta.1 bumps to 1.2.0-beta.2,
+          // 1.2.0-beta.fooblz or 1.2.0-beta bumps to 1.2.0-beta.0
+          if (this.prerelease[0] === identifier) {
+            if (isNaN(this.prerelease[1])) {
+              this.prerelease = [identifier, 0]
+            }
+          } else {
+            this.prerelease = [identifier, 0]
+          }
+        }
+        break
+
+      default:
+        throw new Error(`invalid increment argument: ${release}`)
+    }
+    this.format()
+    this.raw = this.version
+    return this
+  }
+}
+
+module.exports = SemVer
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/clean.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/clean.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const parse = __webpack_require__(/*! ./parse */ "./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js")
+const clean = (version, options) => {
+  const s = parse(version.trim().replace(/^[=v]+/, ''), options)
+  return s ? s.version : null
+}
+module.exports = clean
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/cmp.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/cmp.js ***!
+  \*********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const eq = __webpack_require__(/*! ./eq */ "./node_modules/vscode-languageclient/node_modules/semver/functions/eq.js")
+const neq = __webpack_require__(/*! ./neq */ "./node_modules/vscode-languageclient/node_modules/semver/functions/neq.js")
+const gt = __webpack_require__(/*! ./gt */ "./node_modules/vscode-languageclient/node_modules/semver/functions/gt.js")
+const gte = __webpack_require__(/*! ./gte */ "./node_modules/vscode-languageclient/node_modules/semver/functions/gte.js")
+const lt = __webpack_require__(/*! ./lt */ "./node_modules/vscode-languageclient/node_modules/semver/functions/lt.js")
+const lte = __webpack_require__(/*! ./lte */ "./node_modules/vscode-languageclient/node_modules/semver/functions/lte.js")
+
+const cmp = (a, op, b, loose) => {
+  switch (op) {
+    case '===':
+      if (typeof a === 'object')
+        a = a.version
+      if (typeof b === 'object')
+        b = b.version
+      return a === b
+
+    case '!==':
+      if (typeof a === 'object')
+        a = a.version
+      if (typeof b === 'object')
+        b = b.version
+      return a !== b
+
+    case '':
+    case '=':
+    case '==':
+      return eq(a, b, loose)
+
+    case '!=':
+      return neq(a, b, loose)
+
+    case '>':
+      return gt(a, b, loose)
+
+    case '>=':
+      return gte(a, b, loose)
+
+    case '<':
+      return lt(a, b, loose)
+
+    case '<=':
+      return lte(a, b, loose)
+
+    default:
+      throw new TypeError(`Invalid operator: ${op}`)
+  }
+}
+module.exports = cmp
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/coerce.js":
+/*!************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/coerce.js ***!
+  \************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const parse = __webpack_require__(/*! ./parse */ "./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js")
+const {re, t} = __webpack_require__(/*! ../internal/re */ "./node_modules/vscode-languageclient/node_modules/semver/internal/re.js")
+
+const coerce = (version, options) => {
+  if (version instanceof SemVer) {
+    return version
+  }
+
+  if (typeof version === 'number') {
+    version = String(version)
+  }
+
+  if (typeof version !== 'string') {
+    return null
+  }
+
+  options = options || {}
+
+  let match = null
+  if (!options.rtl) {
+    match = version.match(re[t.COERCE])
+  } else {
+    // Find the right-most coercible string that does not share
+    // a terminus with a more left-ward coercible string.
+    // Eg, '1.2.3.4' wants to coerce '2.3.4', not '3.4' or '4'
+    //
+    // Walk through the string checking with a /g regexp
+    // Manually set the index so as to pick up overlapping matches.
+    // Stop when we get a match that ends at the string end, since no
+    // coercible string can be more right-ward without the same terminus.
+    let next
+    while ((next = re[t.COERCERTL].exec(version)) &&
+        (!match || match.index + match[0].length !== version.length)
+    ) {
+      if (!match ||
+            next.index + next[0].length !== match.index + match[0].length) {
+        match = next
+      }
+      re[t.COERCERTL].lastIndex = next.index + next[1].length + next[2].length
+    }
+    // leave it in a clean state
+    re[t.COERCERTL].lastIndex = -1
+  }
+
+  if (match === null)
+    return null
+
+  return parse(`${match[2]}.${match[3] || '0'}.${match[4] || '0'}`, options)
+}
+module.exports = coerce
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare-build.js":
+/*!*******************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/compare-build.js ***!
+  \*******************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const compareBuild = (a, b, loose) => {
+  const versionA = new SemVer(a, loose)
+  const versionB = new SemVer(b, loose)
+  return versionA.compare(versionB) || versionA.compareBuild(versionB)
+}
+module.exports = compareBuild
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare-loose.js":
+/*!*******************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/compare-loose.js ***!
+  \*******************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const compareLoose = (a, b) => compare(a, b, true)
+module.exports = compareLoose
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js":
+/*!*************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js ***!
+  \*************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const compare = (a, b, loose) =>
+  new SemVer(a, loose).compare(new SemVer(b, loose))
+
+module.exports = compare
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/diff.js":
+/*!**********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/diff.js ***!
+  \**********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const parse = __webpack_require__(/*! ./parse */ "./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js")
+const eq = __webpack_require__(/*! ./eq */ "./node_modules/vscode-languageclient/node_modules/semver/functions/eq.js")
+
+const diff = (version1, version2) => {
+  if (eq(version1, version2)) {
+    return null
+  } else {
+    const v1 = parse(version1)
+    const v2 = parse(version2)
+    const hasPre = v1.prerelease.length || v2.prerelease.length
+    const prefix = hasPre ? 'pre' : ''
+    const defaultResult = hasPre ? 'prerelease' : ''
+    for (const key in v1) {
+      if (key === 'major' || key === 'minor' || key === 'patch') {
+        if (v1[key] !== v2[key]) {
+          return prefix + key
+        }
+      }
+    }
+    return defaultResult // may be undefined
+  }
+}
+module.exports = diff
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/eq.js":
+/*!********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/eq.js ***!
+  \********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const eq = (a, b, loose) => compare(a, b, loose) === 0
+module.exports = eq
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/gt.js":
+/*!********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/gt.js ***!
+  \********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const gt = (a, b, loose) => compare(a, b, loose) > 0
+module.exports = gt
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/gte.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/gte.js ***!
+  \*********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const gte = (a, b, loose) => compare(a, b, loose) >= 0
+module.exports = gte
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/inc.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/inc.js ***!
+  \*********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+
+const inc = (version, release, options, identifier) => {
+  if (typeof (options) === 'string') {
+    identifier = options
+    options = undefined
+  }
+
+  try {
+    return new SemVer(version, options).inc(release, identifier).version
+  } catch (er) {
+    return null
+  }
+}
+module.exports = inc
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/lt.js":
+/*!********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/lt.js ***!
+  \********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const lt = (a, b, loose) => compare(a, b, loose) < 0
+module.exports = lt
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/lte.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/lte.js ***!
+  \*********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const lte = (a, b, loose) => compare(a, b, loose) <= 0
+module.exports = lte
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/major.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/major.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const major = (a, loose) => new SemVer(a, loose).major
+module.exports = major
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/minor.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/minor.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const minor = (a, loose) => new SemVer(a, loose).minor
+module.exports = minor
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/neq.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/neq.js ***!
+  \*********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const neq = (a, b, loose) => compare(a, b, loose) !== 0
+module.exports = neq
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const {MAX_LENGTH} = __webpack_require__(/*! ../internal/constants */ "./node_modules/vscode-languageclient/node_modules/semver/internal/constants.js")
+const { re, t } = __webpack_require__(/*! ../internal/re */ "./node_modules/vscode-languageclient/node_modules/semver/internal/re.js")
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+
+const parseOptions = __webpack_require__(/*! ../internal/parse-options */ "./node_modules/vscode-languageclient/node_modules/semver/internal/parse-options.js")
+const parse = (version, options) => {
+  options = parseOptions(options)
+
+  if (version instanceof SemVer) {
+    return version
+  }
+
+  if (typeof version !== 'string') {
+    return null
+  }
+
+  if (version.length > MAX_LENGTH) {
+    return null
+  }
+
+  const r = options.loose ? re[t.LOOSE] : re[t.FULL]
+  if (!r.test(version)) {
+    return null
+  }
+
+  try {
+    return new SemVer(version, options)
+  } catch (er) {
+    return null
+  }
+}
+
+module.exports = parse
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/patch.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/patch.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const patch = (a, loose) => new SemVer(a, loose).patch
+module.exports = patch
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/prerelease.js":
+/*!****************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/prerelease.js ***!
+  \****************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const parse = __webpack_require__(/*! ./parse */ "./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js")
+const prerelease = (version, options) => {
+  const parsed = parse(version, options)
+  return (parsed && parsed.prerelease.length) ? parsed.prerelease : null
+}
+module.exports = prerelease
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/rcompare.js":
+/*!**************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/rcompare.js ***!
+  \**************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compare = __webpack_require__(/*! ./compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+const rcompare = (a, b, loose) => compare(b, a, loose)
+module.exports = rcompare
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/rsort.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/rsort.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compareBuild = __webpack_require__(/*! ./compare-build */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare-build.js")
+const rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose))
+module.exports = rsort
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/satisfies.js":
+/*!***************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/satisfies.js ***!
+  \***************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+const satisfies = (version, range, options) => {
+  try {
+    range = new Range(range, options)
+  } catch (er) {
+    return false
+  }
+  return range.test(version)
+}
+module.exports = satisfies
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/sort.js":
+/*!**********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/sort.js ***!
+  \**********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const compareBuild = __webpack_require__(/*! ./compare-build */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare-build.js")
+const sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose))
+module.exports = sort
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/functions/valid.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/functions/valid.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const parse = __webpack_require__(/*! ./parse */ "./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js")
+const valid = (version, options) => {
+  const v = parse(version, options)
+  return v ? v.version : null
+}
+module.exports = valid
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/index.js":
+/*!*************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/index.js ***!
+  \*************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+// just pre-load all the stuff that index.js lazily exports
+const internalRe = __webpack_require__(/*! ./internal/re */ "./node_modules/vscode-languageclient/node_modules/semver/internal/re.js")
+module.exports = {
+  re: internalRe.re,
+  src: internalRe.src,
+  tokens: internalRe.t,
+  SEMVER_SPEC_VERSION: __webpack_require__(/*! ./internal/constants */ "./node_modules/vscode-languageclient/node_modules/semver/internal/constants.js").SEMVER_SPEC_VERSION,
+  SemVer: __webpack_require__(/*! ./classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js"),
+  compareIdentifiers: __webpack_require__(/*! ./internal/identifiers */ "./node_modules/vscode-languageclient/node_modules/semver/internal/identifiers.js").compareIdentifiers,
+  rcompareIdentifiers: __webpack_require__(/*! ./internal/identifiers */ "./node_modules/vscode-languageclient/node_modules/semver/internal/identifiers.js").rcompareIdentifiers,
+  parse: __webpack_require__(/*! ./functions/parse */ "./node_modules/vscode-languageclient/node_modules/semver/functions/parse.js"),
+  valid: __webpack_require__(/*! ./functions/valid */ "./node_modules/vscode-languageclient/node_modules/semver/functions/valid.js"),
+  clean: __webpack_require__(/*! ./functions/clean */ "./node_modules/vscode-languageclient/node_modules/semver/functions/clean.js"),
+  inc: __webpack_require__(/*! ./functions/inc */ "./node_modules/vscode-languageclient/node_modules/semver/functions/inc.js"),
+  diff: __webpack_require__(/*! ./functions/diff */ "./node_modules/vscode-languageclient/node_modules/semver/functions/diff.js"),
+  major: __webpack_require__(/*! ./functions/major */ "./node_modules/vscode-languageclient/node_modules/semver/functions/major.js"),
+  minor: __webpack_require__(/*! ./functions/minor */ "./node_modules/vscode-languageclient/node_modules/semver/functions/minor.js"),
+  patch: __webpack_require__(/*! ./functions/patch */ "./node_modules/vscode-languageclient/node_modules/semver/functions/patch.js"),
+  prerelease: __webpack_require__(/*! ./functions/prerelease */ "./node_modules/vscode-languageclient/node_modules/semver/functions/prerelease.js"),
+  compare: __webpack_require__(/*! ./functions/compare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js"),
+  rcompare: __webpack_require__(/*! ./functions/rcompare */ "./node_modules/vscode-languageclient/node_modules/semver/functions/rcompare.js"),
+  compareLoose: __webpack_require__(/*! ./functions/compare-loose */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare-loose.js"),
+  compareBuild: __webpack_require__(/*! ./functions/compare-build */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare-build.js"),
+  sort: __webpack_require__(/*! ./functions/sort */ "./node_modules/vscode-languageclient/node_modules/semver/functions/sort.js"),
+  rsort: __webpack_require__(/*! ./functions/rsort */ "./node_modules/vscode-languageclient/node_modules/semver/functions/rsort.js"),
+  gt: __webpack_require__(/*! ./functions/gt */ "./node_modules/vscode-languageclient/node_modules/semver/functions/gt.js"),
+  lt: __webpack_require__(/*! ./functions/lt */ "./node_modules/vscode-languageclient/node_modules/semver/functions/lt.js"),
+  eq: __webpack_require__(/*! ./functions/eq */ "./node_modules/vscode-languageclient/node_modules/semver/functions/eq.js"),
+  neq: __webpack_require__(/*! ./functions/neq */ "./node_modules/vscode-languageclient/node_modules/semver/functions/neq.js"),
+  gte: __webpack_require__(/*! ./functions/gte */ "./node_modules/vscode-languageclient/node_modules/semver/functions/gte.js"),
+  lte: __webpack_require__(/*! ./functions/lte */ "./node_modules/vscode-languageclient/node_modules/semver/functions/lte.js"),
+  cmp: __webpack_require__(/*! ./functions/cmp */ "./node_modules/vscode-languageclient/node_modules/semver/functions/cmp.js"),
+  coerce: __webpack_require__(/*! ./functions/coerce */ "./node_modules/vscode-languageclient/node_modules/semver/functions/coerce.js"),
+  Comparator: __webpack_require__(/*! ./classes/comparator */ "./node_modules/vscode-languageclient/node_modules/semver/classes/comparator.js"),
+  Range: __webpack_require__(/*! ./classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js"),
+  satisfies: __webpack_require__(/*! ./functions/satisfies */ "./node_modules/vscode-languageclient/node_modules/semver/functions/satisfies.js"),
+  toComparators: __webpack_require__(/*! ./ranges/to-comparators */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/to-comparators.js"),
+  maxSatisfying: __webpack_require__(/*! ./ranges/max-satisfying */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/max-satisfying.js"),
+  minSatisfying: __webpack_require__(/*! ./ranges/min-satisfying */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/min-satisfying.js"),
+  minVersion: __webpack_require__(/*! ./ranges/min-version */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/min-version.js"),
+  validRange: __webpack_require__(/*! ./ranges/valid */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/valid.js"),
+  outside: __webpack_require__(/*! ./ranges/outside */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/outside.js"),
+  gtr: __webpack_require__(/*! ./ranges/gtr */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/gtr.js"),
+  ltr: __webpack_require__(/*! ./ranges/ltr */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/ltr.js"),
+  intersects: __webpack_require__(/*! ./ranges/intersects */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/intersects.js"),
+  simplifyRange: __webpack_require__(/*! ./ranges/simplify */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/simplify.js"),
+  subset: __webpack_require__(/*! ./ranges/subset */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/subset.js"),
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/internal/constants.js":
+/*!**************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/internal/constants.js ***!
+  \**************************************************************************************/
+/***/ ((module) => {
+
+// Note: this is the semver.org version of the spec that it implements
+// Not necessarily the package version of this code.
+const SEMVER_SPEC_VERSION = '2.0.0'
+
+const MAX_LENGTH = 256
+const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER ||
+  /* istanbul ignore next */ 9007199254740991
+
+// Max safe segment length for coercion.
+const MAX_SAFE_COMPONENT_LENGTH = 16
+
+module.exports = {
+  SEMVER_SPEC_VERSION,
+  MAX_LENGTH,
+  MAX_SAFE_INTEGER,
+  MAX_SAFE_COMPONENT_LENGTH
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/internal/debug.js":
+/*!**********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/internal/debug.js ***!
+  \**********************************************************************************/
+/***/ ((module) => {
+
+const debug = (
+  typeof process === 'object' &&
+  process.env &&
+  process.env.NODE_DEBUG &&
+  /\bsemver\b/i.test(process.env.NODE_DEBUG)
+) ? (...args) => console.error('SEMVER', ...args)
+  : () => {}
+
+module.exports = debug
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/internal/identifiers.js":
+/*!****************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/internal/identifiers.js ***!
+  \****************************************************************************************/
+/***/ ((module) => {
+
+const numeric = /^[0-9]+$/
+const compareIdentifiers = (a, b) => {
+  const anum = numeric.test(a)
+  const bnum = numeric.test(b)
+
+  if (anum && bnum) {
+    a = +a
+    b = +b
+  }
+
+  return a === b ? 0
+    : (anum && !bnum) ? -1
+    : (bnum && !anum) ? 1
+    : a < b ? -1
+    : 1
+}
+
+const rcompareIdentifiers = (a, b) => compareIdentifiers(b, a)
+
+module.exports = {
+  compareIdentifiers,
+  rcompareIdentifiers
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/internal/parse-options.js":
+/*!******************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/internal/parse-options.js ***!
+  \******************************************************************************************/
+/***/ ((module) => {
+
+// parse out just the options we care about so we always get a consistent
+// obj with keys in a consistent order.
+const opts = ['includePrerelease', 'loose', 'rtl']
+const parseOptions = options =>
+  !options ? {}
+  : typeof options !== 'object' ? { loose: true }
+  : opts.filter(k => options[k]).reduce((options, k) => {
+    options[k] = true
+    return options
+  }, {})
+module.exports = parseOptions
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/internal/re.js":
+/*!*******************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/internal/re.js ***!
+  \*******************************************************************************/
+/***/ ((module, exports, __webpack_require__) => {
+
+const { MAX_SAFE_COMPONENT_LENGTH } = __webpack_require__(/*! ./constants */ "./node_modules/vscode-languageclient/node_modules/semver/internal/constants.js")
+const debug = __webpack_require__(/*! ./debug */ "./node_modules/vscode-languageclient/node_modules/semver/internal/debug.js")
+exports = module.exports = {}
+
+// The actual regexps go on exports.re
+const re = exports.re = []
+const src = exports.src = []
+const t = exports.t = {}
+let R = 0
+
+const createToken = (name, value, isGlobal) => {
+  const index = R++
+  debug(index, value)
+  t[name] = index
+  src[index] = value
+  re[index] = new RegExp(value, isGlobal ? 'g' : undefined)
+}
+
+// The following Regular Expressions can be used for tokenizing,
+// validating, and parsing SemVer version strings.
+
+// ## Numeric Identifier
+// A single `0`, or a non-zero digit followed by zero or more digits.
+
+createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*')
+createToken('NUMERICIDENTIFIERLOOSE', '[0-9]+')
+
+// ## Non-numeric Identifier
+// Zero or more digits, followed by a letter or hyphen, and then zero or
+// more letters, digits, or hyphens.
+
+createToken('NONNUMERICIDENTIFIER', '\\d*[a-zA-Z-][a-zA-Z0-9-]*')
+
+// ## Main Version
+// Three dot-separated numeric identifiers.
+
+createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
+                   `(${src[t.NUMERICIDENTIFIER]})\\.` +
+                   `(${src[t.NUMERICIDENTIFIER]})`)
+
+createToken('MAINVERSIONLOOSE', `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+                        `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+                        `(${src[t.NUMERICIDENTIFIERLOOSE]})`)
+
+// ## Pre-release Version Identifier
+// A numeric identifier, or a non-numeric identifier.
+
+createToken('PRERELEASEIDENTIFIER', `(?:${src[t.NUMERICIDENTIFIER]
+}|${src[t.NONNUMERICIDENTIFIER]})`)
+
+createToken('PRERELEASEIDENTIFIERLOOSE', `(?:${src[t.NUMERICIDENTIFIERLOOSE]
+}|${src[t.NONNUMERICIDENTIFIER]})`)
+
+// ## Pre-release Version
+// Hyphen, followed by one or more dot-separated pre-release version
+// identifiers.
+
+createToken('PRERELEASE', `(?:-(${src[t.PRERELEASEIDENTIFIER]
+}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`)
+
+createToken('PRERELEASELOOSE', `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]
+}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`)
+
+// ## Build Metadata Identifier
+// Any combination of digits, letters, or hyphens.
+
+createToken('BUILDIDENTIFIER', '[0-9A-Za-z-]+')
+
+// ## Build Metadata
+// Plus sign, followed by one or more period-separated build metadata
+// identifiers.
+
+createToken('BUILD', `(?:\\+(${src[t.BUILDIDENTIFIER]
+}(?:\\.${src[t.BUILDIDENTIFIER]})*))`)
+
+// ## Full Version String
+// A main version, followed optionally by a pre-release version and
+// build metadata.
+
+// Note that the only major, minor, patch, and pre-release sections of
+// the version string are capturing groups.  The build metadata is not a
+// capturing group, because it should not ever be used in version
+// comparison.
+
+createToken('FULLPLAIN', `v?${src[t.MAINVERSION]
+}${src[t.PRERELEASE]}?${
+  src[t.BUILD]}?`)
+
+createToken('FULL', `^${src[t.FULLPLAIN]}$`)
+
+// like full, but allows v1.2.3 and =1.2.3, which people do sometimes.
+// also, 1.0.0alpha1 (prerelease without the hyphen) which is pretty
+// common in the npm registry.
+createToken('LOOSEPLAIN', `[v=\\s]*${src[t.MAINVERSIONLOOSE]
+}${src[t.PRERELEASELOOSE]}?${
+  src[t.BUILD]}?`)
+
+createToken('LOOSE', `^${src[t.LOOSEPLAIN]}$`)
+
+createToken('GTLT', '((?:<|>)?=?)')
+
+// Something like "2.*" or "1.2.x".
+// Note that "x.x" is a valid xRange identifer, meaning "any version"
+// Only the first item is strictly required.
+createToken('XRANGEIDENTIFIERLOOSE', `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`)
+createToken('XRANGEIDENTIFIER', `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`)
+
+createToken('XRANGEPLAIN', `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})` +
+                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+                   `(?:${src[t.PRERELEASE]})?${
+                     src[t.BUILD]}?` +
+                   `)?)?`)
+
+createToken('XRANGEPLAINLOOSE', `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+                        `(?:${src[t.PRERELEASELOOSE]})?${
+                          src[t.BUILD]}?` +
+                        `)?)?`)
+
+createToken('XRANGE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`)
+createToken('XRANGELOOSE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`)
+
+// Coercion.
+// Extract anything that could conceivably be a part of a valid semver
+createToken('COERCE', `${'(^|[^\\d])' +
+              '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
+              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+              `(?:$|[^\\d])`)
+createToken('COERCERTL', src[t.COERCE], true)
+
+// Tilde ranges.
+// Meaning is "reasonably at or greater than"
+createToken('LONETILDE', '(?:~>?)')
+
+createToken('TILDETRIM', `(\\s*)${src[t.LONETILDE]}\\s+`, true)
+exports.tildeTrimReplace = '$1~'
+
+createToken('TILDE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`)
+createToken('TILDELOOSE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`)
+
+// Caret ranges.
+// Meaning is "at least and backwards compatible with"
+createToken('LONECARET', '(?:\\^)')
+
+createToken('CARETTRIM', `(\\s*)${src[t.LONECARET]}\\s+`, true)
+exports.caretTrimReplace = '$1^'
+
+createToken('CARET', `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`)
+createToken('CARETLOOSE', `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`)
+
+// A simple gt/lt/eq thing, or just "" to indicate "any version"
+createToken('COMPARATORLOOSE', `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`)
+createToken('COMPARATOR', `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`)
+
+// An expression to strip any whitespace between the gtlt and the thing
+// it modifies, so that `> 1.2.3` ==> `>1.2.3`
+createToken('COMPARATORTRIM', `(\\s*)${src[t.GTLT]
+}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true)
+exports.comparatorTrimReplace = '$1$2$3'
+
+// Something like `1.2.3 - 1.2.4`
+// Note that these all use the loose form, because they'll be
+// checked against either the strict or loose comparator form
+// later.
+createToken('HYPHENRANGE', `^\\s*(${src[t.XRANGEPLAIN]})` +
+                   `\\s+-\\s+` +
+                   `(${src[t.XRANGEPLAIN]})` +
+                   `\\s*$`)
+
+createToken('HYPHENRANGELOOSE', `^\\s*(${src[t.XRANGEPLAINLOOSE]})` +
+                        `\\s+-\\s+` +
+                        `(${src[t.XRANGEPLAINLOOSE]})` +
+                        `\\s*$`)
+
+// Star ranges basically just allow anything at all.
+createToken('STAR', '(<|>)?=?\\s*\\*')
+// >=0.0.0 is like a star
+createToken('GTE0', '^\\s*>=\\s*0\.0\.0\\s*$')
+createToken('GTE0PRE', '^\\s*>=\\s*0\.0\.0-0\\s*$')
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/gtr.js":
+/*!******************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/gtr.js ***!
+  \******************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+// Determine if version is greater than all the versions possible in the range.
+const outside = __webpack_require__(/*! ./outside */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/outside.js")
+const gtr = (version, range, options) => outside(version, range, '>', options)
+module.exports = gtr
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/intersects.js":
+/*!*************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/intersects.js ***!
+  \*************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+const intersects = (r1, r2, options) => {
+  r1 = new Range(r1, options)
+  r2 = new Range(r2, options)
+  return r1.intersects(r2)
+}
+module.exports = intersects
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/ltr.js":
+/*!******************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/ltr.js ***!
+  \******************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const outside = __webpack_require__(/*! ./outside */ "./node_modules/vscode-languageclient/node_modules/semver/ranges/outside.js")
+// Determine if version is less than all the versions possible in the range
+const ltr = (version, range, options) => outside(version, range, '<', options)
+module.exports = ltr
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/max-satisfying.js":
+/*!*****************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/max-satisfying.js ***!
+  \*****************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+
+const maxSatisfying = (versions, range, options) => {
+  let max = null
+  let maxSV = null
+  let rangeObj = null
+  try {
+    rangeObj = new Range(range, options)
+  } catch (er) {
+    return null
+  }
+  versions.forEach((v) => {
+    if (rangeObj.test(v)) {
+      // satisfies(v, range, options)
+      if (!max || maxSV.compare(v) === -1) {
+        // compare(max, v, true)
+        max = v
+        maxSV = new SemVer(max, options)
+      }
+    }
+  })
+  return max
+}
+module.exports = maxSatisfying
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/min-satisfying.js":
+/*!*****************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/min-satisfying.js ***!
+  \*****************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+const minSatisfying = (versions, range, options) => {
+  let min = null
+  let minSV = null
+  let rangeObj = null
+  try {
+    rangeObj = new Range(range, options)
+  } catch (er) {
+    return null
+  }
+  versions.forEach((v) => {
+    if (rangeObj.test(v)) {
+      // satisfies(v, range, options)
+      if (!min || minSV.compare(v) === 1) {
+        // compare(min, v, true)
+        min = v
+        minSV = new SemVer(min, options)
+      }
+    }
+  })
+  return min
+}
+module.exports = minSatisfying
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/min-version.js":
+/*!**************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/min-version.js ***!
+  \**************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+const gt = __webpack_require__(/*! ../functions/gt */ "./node_modules/vscode-languageclient/node_modules/semver/functions/gt.js")
+
+const minVersion = (range, loose) => {
+  range = new Range(range, loose)
+
+  let minver = new SemVer('0.0.0')
+  if (range.test(minver)) {
+    return minver
+  }
+
+  minver = new SemVer('0.0.0-0')
+  if (range.test(minver)) {
+    return minver
+  }
+
+  minver = null
+  for (let i = 0; i < range.set.length; ++i) {
+    const comparators = range.set[i]
+
+    let setMin = null
+    comparators.forEach((comparator) => {
+      // Clone to avoid manipulating the comparator's semver object.
+      const compver = new SemVer(comparator.semver.version)
+      switch (comparator.operator) {
+        case '>':
+          if (compver.prerelease.length === 0) {
+            compver.patch++
+          } else {
+            compver.prerelease.push(0)
+          }
+          compver.raw = compver.format()
+          /* fallthrough */
+        case '':
+        case '>=':
+          if (!setMin || gt(compver, setMin)) {
+            setMin = compver
+          }
+          break
+        case '<':
+        case '<=':
+          /* Ignore maximum versions */
+          break
+        /* istanbul ignore next */
+        default:
+          throw new Error(`Unexpected operation: ${comparator.operator}`)
+      }
+    })
+    if (setMin && (!minver || gt(minver, setMin)))
+      minver = setMin
+  }
+
+  if (minver && range.test(minver)) {
+    return minver
+  }
+
+  return null
+}
+module.exports = minVersion
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/outside.js":
+/*!**********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/outside.js ***!
+  \**********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const SemVer = __webpack_require__(/*! ../classes/semver */ "./node_modules/vscode-languageclient/node_modules/semver/classes/semver.js")
+const Comparator = __webpack_require__(/*! ../classes/comparator */ "./node_modules/vscode-languageclient/node_modules/semver/classes/comparator.js")
+const {ANY} = Comparator
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+const satisfies = __webpack_require__(/*! ../functions/satisfies */ "./node_modules/vscode-languageclient/node_modules/semver/functions/satisfies.js")
+const gt = __webpack_require__(/*! ../functions/gt */ "./node_modules/vscode-languageclient/node_modules/semver/functions/gt.js")
+const lt = __webpack_require__(/*! ../functions/lt */ "./node_modules/vscode-languageclient/node_modules/semver/functions/lt.js")
+const lte = __webpack_require__(/*! ../functions/lte */ "./node_modules/vscode-languageclient/node_modules/semver/functions/lte.js")
+const gte = __webpack_require__(/*! ../functions/gte */ "./node_modules/vscode-languageclient/node_modules/semver/functions/gte.js")
+
+const outside = (version, range, hilo, options) => {
+  version = new SemVer(version, options)
+  range = new Range(range, options)
+
+  let gtfn, ltefn, ltfn, comp, ecomp
+  switch (hilo) {
+    case '>':
+      gtfn = gt
+      ltefn = lte
+      ltfn = lt
+      comp = '>'
+      ecomp = '>='
+      break
+    case '<':
+      gtfn = lt
+      ltefn = gte
+      ltfn = gt
+      comp = '<'
+      ecomp = '<='
+      break
+    default:
+      throw new TypeError('Must provide a hilo val of "<" or ">"')
+  }
+
+  // If it satisfies the range it is not outside
+  if (satisfies(version, range, options)) {
+    return false
+  }
+
+  // From now on, variable terms are as if we're in "gtr" mode.
+  // but note that everything is flipped for the "ltr" function.
+
+  for (let i = 0; i < range.set.length; ++i) {
+    const comparators = range.set[i]
+
+    let high = null
+    let low = null
+
+    comparators.forEach((comparator) => {
+      if (comparator.semver === ANY) {
+        comparator = new Comparator('>=0.0.0')
+      }
+      high = high || comparator
+      low = low || comparator
+      if (gtfn(comparator.semver, high.semver, options)) {
+        high = comparator
+      } else if (ltfn(comparator.semver, low.semver, options)) {
+        low = comparator
+      }
+    })
+
+    // If the edge version comparator has a operator then our version
+    // isn't outside it
+    if (high.operator === comp || high.operator === ecomp) {
+      return false
+    }
+
+    // If the lowest version comparator has an operator and our version
+    // is less than it then it isn't higher than the range
+    if ((!low.operator || low.operator === comp) &&
+        ltefn(version, low.semver)) {
+      return false
+    } else if (low.operator === ecomp && ltfn(version, low.semver)) {
+      return false
+    }
+  }
+  return true
+}
+
+module.exports = outside
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/simplify.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/simplify.js ***!
+  \***********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+// given a set of versions and a range, create a "simplified" range
+// that includes the same versions that the original range does
+// If the original range is shorter than the simplified one, return that.
+const satisfies = __webpack_require__(/*! ../functions/satisfies.js */ "./node_modules/vscode-languageclient/node_modules/semver/functions/satisfies.js")
+const compare = __webpack_require__(/*! ../functions/compare.js */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+module.exports = (versions, range, options) => {
+  const set = []
+  let min = null
+  let prev = null
+  const v = versions.sort((a, b) => compare(a, b, options))
+  for (const version of v) {
+    const included = satisfies(version, range, options)
+    if (included) {
+      prev = version
+      if (!min)
+        min = version
+    } else {
+      if (prev) {
+        set.push([min, prev])
+      }
+      prev = null
+      min = null
+    }
+  }
+  if (min)
+    set.push([min, null])
+
+  const ranges = []
+  for (const [min, max] of set) {
+    if (min === max)
+      ranges.push(min)
+    else if (!max && min === v[0])
+      ranges.push('*')
+    else if (!max)
+      ranges.push(`>=${min}`)
+    else if (min === v[0])
+      ranges.push(`<=${max}`)
+    else
+      ranges.push(`${min} - ${max}`)
+  }
+  const simplified = ranges.join(' || ')
+  const original = typeof range.raw === 'string' ? range.raw : String(range)
+  return simplified.length < original.length ? simplified : range
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/subset.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/subset.js ***!
+  \*********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const Range = __webpack_require__(/*! ../classes/range.js */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+const Comparator = __webpack_require__(/*! ../classes/comparator.js */ "./node_modules/vscode-languageclient/node_modules/semver/classes/comparator.js")
+const { ANY } = Comparator
+const satisfies = __webpack_require__(/*! ../functions/satisfies.js */ "./node_modules/vscode-languageclient/node_modules/semver/functions/satisfies.js")
+const compare = __webpack_require__(/*! ../functions/compare.js */ "./node_modules/vscode-languageclient/node_modules/semver/functions/compare.js")
+
+// Complex range `r1 || r2 || ...` is a subset of `R1 || R2 || ...` iff:
+// - Every simple range `r1, r2, ...` is a null set, OR
+// - Every simple range `r1, r2, ...` which is not a null set is a subset of
+//   some `R1, R2, ...`
+//
+// Simple range `c1 c2 ...` is a subset of simple range `C1 C2 ...` iff:
+// - If c is only the ANY comparator
+//   - If C is only the ANY comparator, return true
+//   - Else if in prerelease mode, return false
+//   - else replace c with `[>=0.0.0]`
+// - If C is only the ANY comparator
+//   - if in prerelease mode, return true
+//   - else replace C with `[>=0.0.0]`
+// - Let EQ be the set of = comparators in c
+// - If EQ is more than one, return true (null set)
+// - Let GT be the highest > or >= comparator in c
+// - Let LT be the lowest < or <= comparator in c
+// - If GT and LT, and GT.semver > LT.semver, return true (null set)
+// - If any C is a = range, and GT or LT are set, return false
+// - If EQ
+//   - If GT, and EQ does not satisfy GT, return true (null set)
+//   - If LT, and EQ does not satisfy LT, return true (null set)
+//   - If EQ satisfies every C, return true
+//   - Else return false
+// - If GT
+//   - If GT.semver is lower than any > or >= comp in C, return false
+//   - If GT is >=, and GT.semver does not satisfy every C, return false
+//   - If GT.semver has a prerelease, and not in prerelease mode
+//     - If no C has a prerelease and the GT.semver tuple, return false
+// - If LT
+//   - If LT.semver is greater than any < or <= comp in C, return false
+//   - If LT is <=, and LT.semver does not satisfy every C, return false
+//   - If GT.semver has a prerelease, and not in prerelease mode
+//     - If no C has a prerelease and the LT.semver tuple, return false
+// - Else return true
+
+const subset = (sub, dom, options = {}) => {
+  if (sub === dom)
+    return true
+
+  sub = new Range(sub, options)
+  dom = new Range(dom, options)
+  let sawNonNull = false
+
+  OUTER: for (const simpleSub of sub.set) {
+    for (const simpleDom of dom.set) {
+      const isSub = simpleSubset(simpleSub, simpleDom, options)
+      sawNonNull = sawNonNull || isSub !== null
+      if (isSub)
+        continue OUTER
+    }
+    // the null set is a subset of everything, but null simple ranges in
+    // a complex range should be ignored.  so if we saw a non-null range,
+    // then we know this isn't a subset, but if EVERY simple range was null,
+    // then it is a subset.
+    if (sawNonNull)
+      return false
+  }
+  return true
+}
+
+const simpleSubset = (sub, dom, options) => {
+  if (sub === dom)
+    return true
+
+  if (sub.length === 1 && sub[0].semver === ANY) {
+    if (dom.length === 1 && dom[0].semver === ANY)
+      return true
+    else if (options.includePrerelease)
+      sub = [ new Comparator('>=0.0.0-0') ]
+    else
+      sub = [ new Comparator('>=0.0.0') ]
+  }
+
+  if (dom.length === 1 && dom[0].semver === ANY) {
+    if (options.includePrerelease)
+      return true
+    else
+      dom = [ new Comparator('>=0.0.0') ]
+  }
+
+  const eqSet = new Set()
+  let gt, lt
+  for (const c of sub) {
+    if (c.operator === '>' || c.operator === '>=')
+      gt = higherGT(gt, c, options)
+    else if (c.operator === '<' || c.operator === '<=')
+      lt = lowerLT(lt, c, options)
+    else
+      eqSet.add(c.semver)
+  }
+
+  if (eqSet.size > 1)
+    return null
+
+  let gtltComp
+  if (gt && lt) {
+    gtltComp = compare(gt.semver, lt.semver, options)
+    if (gtltComp > 0)
+      return null
+    else if (gtltComp === 0 && (gt.operator !== '>=' || lt.operator !== '<='))
+      return null
+  }
+
+  // will iterate one or zero times
+  for (const eq of eqSet) {
+    if (gt && !satisfies(eq, String(gt), options))
+      return null
+
+    if (lt && !satisfies(eq, String(lt), options))
+      return null
+
+    for (const c of dom) {
+      if (!satisfies(eq, String(c), options))
+        return false
+    }
+
+    return true
+  }
+
+  let higher, lower
+  let hasDomLT, hasDomGT
+  // if the subset has a prerelease, we need a comparator in the superset
+  // with the same tuple and a prerelease, or it's not a subset
+  let needDomLTPre = lt &&
+    !options.includePrerelease &&
+    lt.semver.prerelease.length ? lt.semver : false
+  let needDomGTPre = gt &&
+    !options.includePrerelease &&
+    gt.semver.prerelease.length ? gt.semver : false
+  // exception: <1.2.3-0 is the same as <1.2.3
+  if (needDomLTPre && needDomLTPre.prerelease.length === 1 &&
+      lt.operator === '<' && needDomLTPre.prerelease[0] === 0) {
+    needDomLTPre = false
+  }
+
+  for (const c of dom) {
+    hasDomGT = hasDomGT || c.operator === '>' || c.operator === '>='
+    hasDomLT = hasDomLT || c.operator === '<' || c.operator === '<='
+    if (gt) {
+      if (needDomGTPre) {
+        if (c.semver.prerelease && c.semver.prerelease.length &&
+            c.semver.major === needDomGTPre.major &&
+            c.semver.minor === needDomGTPre.minor &&
+            c.semver.patch === needDomGTPre.patch) {
+          needDomGTPre = false
+        }
+      }
+      if (c.operator === '>' || c.operator === '>=') {
+        higher = higherGT(gt, c, options)
+        if (higher === c && higher !== gt)
+          return false
+      } else if (gt.operator === '>=' && !satisfies(gt.semver, String(c), options))
+        return false
+    }
+    if (lt) {
+      if (needDomLTPre) {
+        if (c.semver.prerelease && c.semver.prerelease.length &&
+            c.semver.major === needDomLTPre.major &&
+            c.semver.minor === needDomLTPre.minor &&
+            c.semver.patch === needDomLTPre.patch) {
+          needDomLTPre = false
+        }
+      }
+      if (c.operator === '<' || c.operator === '<=') {
+        lower = lowerLT(lt, c, options)
+        if (lower === c && lower !== lt)
+          return false
+      } else if (lt.operator === '<=' && !satisfies(lt.semver, String(c), options))
+        return false
+    }
+    if (!c.operator && (lt || gt) && gtltComp !== 0)
+      return false
+  }
+
+  // if there was a < or >, and nothing in the dom, then must be false
+  // UNLESS it was limited by another range in the other direction.
+  // Eg, >1.0.0 <1.0.1 is still a subset of <2.0.0
+  if (gt && hasDomLT && !lt && gtltComp !== 0)
+    return false
+
+  if (lt && hasDomGT && !gt && gtltComp !== 0)
+    return false
+
+  // we needed a prerelease range in a specific tuple, but didn't get one
+  // then this isn't a subset.  eg >=1.2.3-pre is not a subset of >=1.0.0,
+  // because it includes prereleases in the 1.2.3 tuple
+  if (needDomGTPre || needDomLTPre)
+    return false
+
+  return true
+}
+
+// >=1.2.3 is lower than >1.2.3
+const higherGT = (a, b, options) => {
+  if (!a)
+    return b
+  const comp = compare(a.semver, b.semver, options)
+  return comp > 0 ? a
+    : comp < 0 ? b
+    : b.operator === '>' && a.operator === '>=' ? b
+    : a
+}
+
+// <=1.2.3 is higher than <1.2.3
+const lowerLT = (a, b, options) => {
+  if (!a)
+    return b
+  const comp = compare(a.semver, b.semver, options)
+  return comp < 0 ? a
+    : comp > 0 ? b
+    : b.operator === '<' && a.operator === '<=' ? b
+    : a
+}
+
+module.exports = subset
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/to-comparators.js":
+/*!*****************************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/to-comparators.js ***!
+  \*****************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+
+// Mostly just for testing and legacy API reasons
+const toComparators = (range, options) =>
+  new Range(range, options).set
+    .map(comp => comp.map(c => c.value).join(' ').trim().split(' '))
+
+module.exports = toComparators
+
+
+/***/ }),
+
+/***/ "./node_modules/vscode-languageclient/node_modules/semver/ranges/valid.js":
+/*!********************************************************************************!*\
+  !*** ./node_modules/vscode-languageclient/node_modules/semver/ranges/valid.js ***!
+  \********************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const Range = __webpack_require__(/*! ../classes/range */ "./node_modules/vscode-languageclient/node_modules/semver/classes/range.js")
+const validRange = (range, options) => {
+  try {
+    // Return '*' instead of '' so that truthiness works.
+    // This will throw if it's invalid anyway
+    return new Range(range, options).range || '*'
+  } catch (er) {
+    return null
+  }
+}
+module.exports = validRange
+
 
 /***/ }),
 

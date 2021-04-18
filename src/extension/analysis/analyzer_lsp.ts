@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as stream from "stream";
-import { CancellationToken, CodeActionContext, CompletionItem, MarkdownString, MarkedString, Position, Range, TextDocument, window } from "vscode";
+import { CancellationToken, CodeActionContext, CompletionItem, MarkdownString, Position, Range, TextDocument, window } from "vscode";
 import { ExecuteCommandSignature, HandleWorkDoneProgressSignature, LanguageClientOptions, Location, Middleware, ProgressToken, ProvideCodeActionsSignature, ProvideHoverSignature, ResolveCompletionItemSignature, TextDocumentPositionParams, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceEdit } from "vscode-languageclient";
 import { LanguageClient, StreamInfo } from "vscode-languageclient/node";
 import { AnalyzerStatusNotification, CompleteStatementRequest, DiagnosticServerRequest, ReanalyzeRequest, SuperRequest } from "../../shared/analysis/lsp/custom_protocol";
@@ -9,11 +9,9 @@ import { hetuVMPath, validClassNameRegex, validMethodNameRegex } from "../../sha
 import { LogCategory } from "../../shared/enums";
 import { Logger } from "../../shared/interfaces";
 import { CategoryLogger } from "../../shared/logging";
-import { cleanDartdoc } from "../../shared/vscode/extension_utils";
 import { config } from "../config";
 import { reportAnalyzerTerminatedWithError } from "../utils/misc";
 import { safeToolSpawn } from "../utils/processes";
-import { getAnalyzerArgs } from "./analyzer";
 import { LspFileTracker } from "./file_tracker_lsp";
 
 export class LspAnalyzer extends Analyzer {
@@ -45,17 +43,6 @@ export class LspAnalyzer extends Analyzer {
       return "language" in input && typeof input.language === "string" && "value" in input && typeof input.value === "string";
     }
 
-    function cleanDocString<T extends MarkedString>(input: T): T {
-      if (input instanceof MarkdownString)
-        return new MarkdownString(cleanDartdoc(input.value)) as T;
-      else if (typeof input === "string")
-        return cleanDartdoc(input) as T;
-      else if (isLanguageValuePair(input))
-        return { language: input.language, value: cleanDartdoc(input.value) } as T;
-      else
-        return input;
-    }
-
     return {
       handleWorkDoneProgress: (token: ProgressToken, params: WorkDoneProgressBegin | WorkDoneProgressReport | WorkDoneProgressEnd, next: HandleWorkDoneProgressSignature) => {
         if (params.kind === "begin")
@@ -67,15 +54,11 @@ export class LspAnalyzer extends Analyzer {
       },
 
       resolveCompletionItem: (item: CompletionItem, token: CancellationToken, next: ResolveCompletionItemSignature) => {
-        if (item.documentation)
-          item.documentation = cleanDocString(item.documentation);
         return next(item, token);
       },
 
       provideHover: async (document: TextDocument, position: Position, token: CancellationToken, next: ProvideHoverSignature) => {
         const item = await next(document, position, token);
-        if (item?.contents)
-          item.contents = item.contents.map((s) => cleanDocString(s));
         return item;
       },
 
@@ -172,8 +155,8 @@ function createClient(logger: Logger, middleware: Middleware): LanguageClient {
   };
 
   const client = new LanguageClient(
-    "dartAnalysisLSP",
-    "Dart Analysis Server",
+    "hetuAnalysisLSP",
+    "Hetu Analysis Server",
     () => spawnServer(logger),
     clientOptions,
   );

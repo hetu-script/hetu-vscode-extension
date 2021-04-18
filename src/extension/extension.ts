@@ -1,6 +1,6 @@
 import * as vs from "vscode";
 import { IAmDisposable, Logger, Sdks } from "../shared/interfaces";
-import { EmittingLogger } from "../shared/logging";
+import { EmittingLogger, logToConsole, RingLog } from "../shared/logging";
 import { internalApiSymbol } from "../shared/symbols";
 import { disposeAll } from "../shared/utils";
 import { fsPath } from "../shared/utils/fs";
@@ -15,7 +15,6 @@ import { LspEditCommands } from "./commands/edit_lsp";
 import { config } from "./config";
 import { LspAnalyzerStatusReporter } from "./lsp/analyzer_status_reporter";
 import { LspGoToSuperCommand } from "./lsp/go_to_super";
-import { handleNewProjects, showUserPrompts } from "./user_prompts";
 import * as util from "./utils";
 import { getLogHeader } from "./utils/log";
 import { safeToolSpawn } from "./utils/processes";
@@ -36,6 +35,8 @@ const logger = new EmittingLogger();
 
 export async function activate(context: vs.ExtensionContext, isRestart: boolean = false) {
 
+  context.subscriptions.push(logToConsole(logger));
+
   const extContext = Context.for(context);
 
   util.logTime("Code called activate");
@@ -48,13 +49,6 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
     await activate(context, true);
     logger.info("Done!");
   }));
-
-  // Handle new projects before creating the analyer to avoid a few issues with
-  // showing errors while packages are fetched, plus issues like
-  // https://github.com/Dart-Code/Dart-Code/issues/2793 which occur if the analyzer
-  // is created too early.
-  if (!isRestart)
-    await handleNewProjects(logger, extContext);
 
   lspAnalyzer = new LspAnalyzer(logger);
   const lspClient = (lspAnalyzer as LspAnalyzer).client;
