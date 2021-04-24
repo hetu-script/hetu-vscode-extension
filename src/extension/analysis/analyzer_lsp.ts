@@ -14,6 +14,8 @@ import { reportAnalyzerTerminatedWithError } from "../utils/misc";
 import { safeToolSpawn } from "../utils/processes";
 import { LspFileTracker } from "./file_tracker_lsp";
 
+import * as util from "../utils";
+
 export class LspAnalyzer extends Analyzer {
   public readonly client: LanguageClient;
   public readonly fileTracker: LspFileTracker;
@@ -168,7 +170,7 @@ function spawnServer(logger: Logger): Promise<StreamInfo> {
   // TODO: Replace with constructing an Analyzer that passes LSP flag (but still reads config
   // from paths etc) and provide it's process.
   // const vmPath = path.join(sdks.dart, hetuVMPath);
-  const vmPath = 'bin/hetu.exe';
+  const vmPath = path.join(__dirname, 'bin/htlsp.exe');
   // const args = getAnalyzerArgs(logger);
 
   logger.info(`Spawning ${vmPath}`);// with args ${JSON.stringify(args)}`);

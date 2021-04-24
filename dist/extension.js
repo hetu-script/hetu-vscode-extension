@@ -4005,6 +4005,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LspAnalyzer = void 0;
+const path = __webpack_require__(/*! path */ "path");
 const stream = __webpack_require__(/*! stream */ "stream");
 const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
 const node_1 = __webpack_require__(/*! vscode-languageclient/node */ "./node_modules/vscode-languageclient/node.js");
@@ -4153,7 +4154,7 @@ function spawnServer(logger) {
     // TODO: Replace with constructing an Analyzer that passes LSP flag (but still reads config
     // from paths etc) and provide it's process.
     // const vmPath = path.join(sdks.dart, hetuVMPath);
-    const vmPath = 'bin/hetu.exe';
+    const vmPath = path.join(__dirname, 'bin/htlsp.exe');
     // const args = getAnalyzerArgs(logger);
     logger.info(`Spawning ${vmPath}`); // with args ${JSON.stringify(args)}`);
     const process = processes_1.safeToolSpawn(undefined, vmPath, []);
@@ -4737,7 +4738,6 @@ function activate(context, isRestart = false) {
     return __awaiter(this, void 0, void 0, function* () {
         context.subscriptions.push(logging_1.logToConsole(logger));
         const extContext = workspace_1.Context.for(context);
-        util.logTime("Code called activate");
         // Wire up a reload command that will re-initialise everything.
         context.subscriptions.push(vs.commands.registerCommand("_hetu.reloadExtension", () => __awaiter(this, void 0, void 0, function* () {
             logger.info("Performing silent extension reload...");
@@ -4757,12 +4757,10 @@ function activate(context, isRestart = false) {
         context.subscriptions.push(vs.workspace.onDidChangeConfiguration(() => handleConfigurationChange()));
         // Register URI handler.
         context.subscriptions.push(vs.window.registerUriHandler(new uri_handler_1.HetuUriHandler()));
-        if (lspClient && lspAnalyzer) {
-            // TODO: LSP equivs of the others...
-            // Refactors
-            // TypeHierarchyCommand
-            context.subscriptions.push(new go_to_super_1.LspGoToSuperCommand(lspAnalyzer));
-        }
+        // TODO: LSP equivs of the others...
+        // Refactors
+        // TypeHierarchyCommand
+        context.subscriptions.push(new go_to_super_1.LspGoToSuperCommand(lspAnalyzer));
         // Set up commands for Dart editors.
         context.subscriptions.push(new edit_1.EditCommands());
         context.subscriptions.push(new edit_lsp_1.LspEditCommands(lspAnalyzer));
@@ -5230,8 +5228,8 @@ function reportAnalyzerTerminatedWithError(duringStartup = false) {
         return;
     isShowingAnalyzerError = true;
     const message = duringStartup
-        ? "The Dart Analyzer could not be started."
-        : "The Dart Analyzer has terminated.";
+        ? "The Hetu Analyzer could not be started."
+        : "The Hetu Analyzer has terminated.";
     // tslint:disable-next-line: no-floating-promises
     utils_1.promptToReloadExtension(message, undefined, true).then(() => isShowingAnalyzerError = false);
 }
@@ -5808,6 +5806,8 @@ function logToConsole(logger) {
             console.error(m.toLine(1000));
         else if (m.severity === enums_1.LogSeverity.Warn)
             console.warn(m.toLine(1000));
+        else if (m.severity === enums_1.LogSeverity.Info)
+            console.info(m.toLine(1000));
     });
 }
 exports.logToConsole = logToConsole;

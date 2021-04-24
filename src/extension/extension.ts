@@ -39,8 +39,6 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
 
   const extContext = Context.for(context);
 
-  util.logTime("Code called activate");
-
   // Wire up a reload command that will re-initialise everything.
   context.subscriptions.push(vs.commands.registerCommand("_hetu.reloadExtension", async () => {
     logger.info("Performing silent extension reload...");
@@ -51,7 +49,7 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   }));
 
   lspAnalyzer = new LspAnalyzer(logger);
-  const lspClient = (lspAnalyzer as LspAnalyzer).client;
+  const lspClient = lspAnalyzer.client;
   context.subscriptions.push(lspAnalyzer);
 
   const activeFileFilters: vs.DocumentFilter[] = [HETU_MODE];
@@ -66,12 +64,10 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   // Register URI handler.
   context.subscriptions.push(vs.window.registerUriHandler(new HetuUriHandler()));
 
-  if (lspClient && lspAnalyzer) {
-    // TODO: LSP equivs of the others...
-    // Refactors
-    // TypeHierarchyCommand
-    context.subscriptions.push(new LspGoToSuperCommand(lspAnalyzer));
-  }
+  // TODO: LSP equivs of the others...
+  // Refactors
+  // TypeHierarchyCommand
+  context.subscriptions.push(new LspGoToSuperCommand(lspAnalyzer));
 
   // Set up commands for Dart editors.
   context.subscriptions.push(new EditCommands());
