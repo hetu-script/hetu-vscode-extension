@@ -4293,163 +4293,6 @@ exports.runProcessInOutputChannel = runProcessInOutputChannel;
 
 /***/ }),
 
-/***/ "./src/extension/commands/edit.ts":
-/*!****************************************!*\
-  !*** ./src/extension/commands/edit.ts ***!
-  \****************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.EditCommands = void 0;
-const vs = __webpack_require__(/*! vscode */ "vscode");
-const constants_1 = __webpack_require__(/*! ../../shared/constants */ "./src/shared/constants.ts");
-const utils_1 = __webpack_require__(/*! ../../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
-class EditCommands {
-    constructor() {
-        this.commands = [];
-        this.commands.push(vs.commands.registerCommand("_dart.jumpToLineColInUri", this.jumpToLineColInUri, this), vs.commands.registerCommand("_dart.showCode", utils_1.showCode, this), vs.commands.registerCommand("dart.writeRecommendedSettings", this.writeRecommendedSettings, this));
-    }
-    jumpToLineColInUri(uri, lineNumber, columnNumber, inOtherEditorColumn) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!uri || uri.scheme !== "file")
-                return;
-            // When navigating while using the inspector, we don't expect this file to replace
-            // the inspector tab, so we always target a column that's showing an editor.
-            const column = inOtherEditorColumn
-                ? utils_1.firstEditorColumn() || vs.ViewColumn.Beside
-                : vs.ViewColumn.Active;
-            const doc = yield vs.workspace.openTextDocument(uri);
-            const editor = yield vs.window.showTextDocument(doc, column, inOtherEditorColumn);
-            if (lineNumber) {
-                const line = doc.lineAt(lineNumber > 0 ? lineNumber - 1 : 0);
-                if (!columnNumber || columnNumber > line.range.end.character)
-                    columnNumber = line.firstNonWhitespaceCharacterIndex;
-                const char = line.range.start.translate({ characterDelta: columnNumber });
-                utils_1.showCode(editor, line.range, line.range, new vs.Range(char, char));
-            }
-        });
-    }
-    writeRecommendedSettings() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const topLevelConfig = vs.workspace.getConfiguration("", null);
-            const dartLanguageConfig = topLevelConfig.inspect("[dart]");
-            const existingConfig = dartLanguageConfig ? dartLanguageConfig.globalValue : undefined;
-            const newValues = Object.assign({}, constants_1.dartRecommendedConfig, existingConfig);
-            yield topLevelConfig.update("[dart]", newValues, vs.ConfigurationTarget.Global);
-            const action = yield vs.window.showInformationMessage("Recommended settings were written to the [dart] section of your global settings file", constants_1.openSettingsAction);
-            if (action === constants_1.openSettingsAction)
-                yield vs.commands.executeCommand("workbench.action.openSettingsJson");
-        });
-    }
-    dispose() {
-        for (const command of this.commands)
-            command.dispose();
-    }
-}
-exports.EditCommands = EditCommands;
-
-
-/***/ }),
-
-/***/ "./src/extension/commands/edit_lsp.ts":
-/*!********************************************!*\
-  !*** ./src/extension/commands/edit_lsp.ts ***!
-  \********************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.LspEditCommands = void 0;
-const vs = __webpack_require__(/*! vscode */ "vscode");
-const vscode_languageclient_1 = __webpack_require__(/*! vscode-languageclient */ "./node_modules/vscode-languageclient/lib/node/main.js");
-class LspEditCommands {
-    constructor(analyzer) {
-        this.analyzer = analyzer;
-        this.commands = [];
-        this.commands.push(vs.commands.registerCommand("dart.sortMembers", () => this.runCodeAction("source.sortMembers")));
-        // TODO: Enable this when https://github.com/dart-lang/sdk/issues/33521
-        // is resolved.
-        this.commands.push(vs.commands.registerCommand("dart.completeStatement", this.completeStatement, this));
-    }
-    runCodeAction(action) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return vs.commands.executeCommand("editor.action.codeAction", { kind: action, apply: "ifSingle" });
-        });
-    }
-    completeStatement() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const editor = vs.window.activeTextEditor;
-            if (!editor || !editor.selection)
-                return;
-            const edit = yield this.analyzer.completeStatement({
-                position: this.analyzer.client.code2ProtocolConverter.asPosition(editor.selection.start),
-                textDocument: this.analyzer.client.code2ProtocolConverter.asVersionedTextDocumentIdentifier(editor.document),
-            });
-            if (edit) {
-                if (yield this.validDocumentVersionsStillMatch(edit)) {
-                    const codeEdit = this.analyzer.client.protocol2CodeConverter.asWorkspaceEdit(edit);
-                    if (!(yield vs.workspace.applyEdit(codeEdit))) {
-                        vs.window.showErrorMessage("VS Code failed to apply edits");
-                    }
-                }
-                else {
-                    vs.window.showErrorMessage("Documents have been modified so edits could not be applied");
-                }
-            }
-        });
-    }
-    validDocumentVersionsStillMatch(edit) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // If the edit didn't have any documentChanges (it has changes) we have
-            // to assume it's all up-to-date.
-            if (!edit.documentChanges)
-                return true;
-            const openTextDocuments = new Map();
-            vs.workspace.textDocuments.forEach((document) => openTextDocuments.set(document.uri.toString(), document));
-            for (const change of edit.documentChanges) {
-                if (vscode_languageclient_1.TextDocumentEdit.is(change) && change.textDocument.version && change.textDocument.version >= 0) {
-                    if (vscode_languageclient_1.TextDocumentEdit.is(change) && change.textDocument.version && change.textDocument.version >= 0) {
-                        const textDocument = openTextDocuments.get(change.textDocument.uri);
-                        if (textDocument && textDocument.version !== change.textDocument.version) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
-        });
-    }
-    dispose() {
-        for (const command of this.commands)
-            command.dispose();
-    }
-}
-exports.LspEditCommands = LspEditCommands;
-
-
-/***/ }),
-
 /***/ "./src/extension/config.ts":
 /*!*********************************!*\
   !*** ./src/extension/config.ts ***!
@@ -4662,32 +4505,6 @@ exports.config = new Config();
 
 /***/ }),
 
-/***/ "./src/extension/editors.ts":
-/*!**********************************!*\
-  !*** ./src/extension/editors.ts ***!
-  \**********************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getActiveDartEditor = exports.isDartDocument = void 0;
-const vs = __webpack_require__(/*! vscode */ "vscode");
-function isDartDocument(document) {
-    return document && document.languageId === "dart";
-}
-exports.isDartDocument = isDartDocument;
-function getActiveDartEditor() {
-    const editor = vs.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== "dart")
-        return undefined;
-    return editor;
-}
-exports.getActiveDartEditor = getActiveDartEditor;
-
-
-/***/ }),
-
 /***/ "./src/extension/extension.ts":
 /*!************************************!*\
   !*** ./src/extension/extension.ts ***!
@@ -4717,11 +4534,8 @@ const utils_2 = __webpack_require__(/*! ../shared/vscode/utils */ "./src/shared/
 const workspace_1 = __webpack_require__(/*! ../shared/vscode/workspace */ "./src/shared/vscode/workspace.ts");
 const analyzer_lsp_1 = __webpack_require__(/*! ./analysis/analyzer_lsp */ "./src/extension/analysis/analyzer_lsp.ts");
 const channels_1 = __webpack_require__(/*! ./commands/channels */ "./src/extension/commands/channels.ts");
-const edit_1 = __webpack_require__(/*! ./commands/edit */ "./src/extension/commands/edit.ts");
-const edit_lsp_1 = __webpack_require__(/*! ./commands/edit_lsp */ "./src/extension/commands/edit_lsp.ts");
 const config_1 = __webpack_require__(/*! ./config */ "./src/extension/config.ts");
 const analyzer_status_reporter_1 = __webpack_require__(/*! ./lsp/analyzer_status_reporter */ "./src/extension/lsp/analyzer_status_reporter.ts");
-const go_to_super_1 = __webpack_require__(/*! ./lsp/go_to_super */ "./src/extension/lsp/go_to_super.ts");
 const util = __webpack_require__(/*! ./utils */ "./src/extension/utils.ts");
 const log_1 = __webpack_require__(/*! ./utils/log */ "./src/extension/utils/log.ts");
 const processes_1 = __webpack_require__(/*! ./utils/processes */ "./src/extension/utils/processes.ts");
@@ -4760,10 +4574,10 @@ function activate(context, isRestart = false) {
         // TODO: LSP equivs of the others...
         // Refactors
         // TypeHierarchyCommand
-        context.subscriptions.push(new go_to_super_1.LspGoToSuperCommand(lspAnalyzer));
+        // context.subscriptions.push(new LspGoToSuperCommand(lspAnalyzer));
         // Set up commands for Dart editors.
-        context.subscriptions.push(new edit_1.EditCommands());
-        context.subscriptions.push(new edit_lsp_1.LspEditCommands(lspAnalyzer));
+        // context.subscriptions.push(new EditCommands());
+        // context.subscriptions.push(new LspEditCommands(lspAnalyzer));
         // Warn the user if they've opened a folder with mismatched casing.
         if (vs.workspace.workspaceFolders && vs.workspace.workspaceFolders.length) {
             for (const wf of vs.workspace.workspaceFolders) {
@@ -4883,63 +4697,6 @@ class LspAnalyzerStatusReporter {
     }
 }
 exports.LspAnalyzerStatusReporter = LspAnalyzerStatusReporter;
-
-
-/***/ }),
-
-/***/ "./src/extension/lsp/go_to_super.ts":
-/*!******************************************!*\
-  !*** ./src/extension/lsp/go_to_super.ts ***!
-  \******************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.LspGoToSuperCommand = void 0;
-const vs = __webpack_require__(/*! vscode */ "vscode");
-const utils_1 = __webpack_require__(/*! ../../shared/utils */ "./src/shared/utils.ts");
-const utils_2 = __webpack_require__(/*! ../../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
-const editors = __webpack_require__(/*! ../editors */ "./src/extension/editors.ts");
-class LspGoToSuperCommand {
-    constructor(analyzer) {
-        this.analyzer = analyzer;
-        this.disposables = [];
-        this.disposables.push(vs.commands.registerCommand("dart.goToSuper", this.goToSuper, this));
-    }
-    goToSuper() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const editor = editors.getActiveDartEditor();
-            if (!editor) {
-                vs.window.showWarningMessage("No active Dart editor.");
-                return;
-            }
-            const location = yield this.analyzer.getSuper({
-                position: this.analyzer.client.code2ProtocolConverter.asPosition(editor.selection.start),
-                textDocument: this.analyzer.client.code2ProtocolConverter.asVersionedTextDocumentIdentifier(editor.document),
-            });
-            if (!location)
-                return;
-            const codeLocation = this.analyzer.client.protocol2CodeConverter.asLocation(location);
-            const elementDocument = yield vs.workspace.openTextDocument(codeLocation.uri);
-            const elementEditor = yield vs.window.showTextDocument(elementDocument);
-            utils_2.showCode(elementEditor, codeLocation.range, codeLocation.range, codeLocation.range);
-        });
-    }
-    dispose() {
-        utils_1.disposeAll(this.disposables);
-    }
-}
-exports.LspGoToSuperCommand = LspGoToSuperCommand;
 
 
 /***/ }),

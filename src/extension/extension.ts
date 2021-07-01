@@ -15,6 +15,7 @@ import { LspEditCommands } from "./commands/edit_lsp";
 import { config } from "./config";
 import { LspAnalyzerStatusReporter } from "./lsp/analyzer_status_reporter";
 import { LspGoToSuperCommand } from "./lsp/go_to_super";
+import { SdkUtils } from "./sdk/utils";
 import * as util from "./utils";
 import { getLogHeader } from "./utils/log";
 import { safeToolSpawn } from "./utils/processes";
@@ -48,6 +49,11 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
     logger.info("Done!");
   }));
 
+
+  const sdkUtils = new SdkUtils(logger);
+  const workspaceContextUnverified = await sdkUtils.scanWorkspace();
+
+
   lspAnalyzer = new LspAnalyzer(logger);
   const lspClient = lspAnalyzer.client;
   context.subscriptions.push(lspAnalyzer);
@@ -67,11 +73,11 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   // TODO: LSP equivs of the others...
   // Refactors
   // TypeHierarchyCommand
-  context.subscriptions.push(new LspGoToSuperCommand(lspAnalyzer));
+  // context.subscriptions.push(new LspGoToSuperCommand(lspAnalyzer));
 
   // Set up commands for Dart editors.
-  context.subscriptions.push(new EditCommands());
-  context.subscriptions.push(new LspEditCommands(lspAnalyzer));
+  // context.subscriptions.push(new EditCommands());
+  // context.subscriptions.push(new LspEditCommands(lspAnalyzer));
 
   // Warn the user if they've opened a folder with mismatched casing.
   if (vs.workspace.workspaceFolders && vs.workspace.workspaceFolders.length) {
