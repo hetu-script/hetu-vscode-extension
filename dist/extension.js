@@ -4019,10 +4019,10 @@ const misc_1 = __webpack_require__(/*! ../utils/misc */ "./src/extension/utils/m
 const processes_1 = __webpack_require__(/*! ../utils/processes */ "./src/extension/utils/processes.ts");
 const file_tracker_lsp_1 = __webpack_require__(/*! ./file_tracker_lsp */ "./src/extension/analysis/file_tracker_lsp.ts");
 class LspAnalyzer extends analyzer_1.Analyzer {
-    constructor(logger) {
+    constructor(logger, sdks, wsContext) {
         super(new logging_1.CategoryLogger(logger, enums_1.LogCategory.Analyzer));
-        this.client = createClient(this.logger, this.buildMiddleware());
-        this.fileTracker = new file_tracker_lsp_1.LspFileTracker(logger, this.client);
+        this.client = createClient(this.logger, sdks, wsContext, this.buildMiddleware());
+        this.fileTracker = new file_tracker_lsp_1.LspFileTracker(logger, this.client, wsContext);
         this.disposables.push(this.client.start());
         this.disposables.push(this.fileTracker);
         // tslint:disable-next-line: no-floating-promises
@@ -4136,7 +4136,7 @@ class LspAnalyzer extends analyzer_1.Analyzer {
     }
 }
 exports.LspAnalyzer = LspAnalyzer;
-function createClient(logger, middleware) {
+function createClient(logger, sdks, wsContext, middleware) {
     const clientOptions = {
         initializationOptions: {
             // 	onlyAnalyzeProjectsWithOpenFiles: true,
@@ -4147,17 +4147,18 @@ function createClient(logger, middleware) {
         middleware,
         outputChannelName: "LSP",
     };
-    const client = new node_1.LanguageClient("hetuAnalysisLSP", "Hetu Analysis Server", () => spawnServer(logger), clientOptions);
+    const client = new node_1.LanguageClient("hetuAnalysisLSP", "Hetu Analysis Server", () => spawnServer(logger, sdks), clientOptions);
     return client;
 }
-function spawnServer(logger) {
+function spawnServer(logger, sdks) {
     // TODO: Replace with constructing an Analyzer that passes LSP flag (but still reads config
     // from paths etc) and provide it's process.
-    // const vmPath = path.join(sdks.dart, hetuVMPath);
-    const vmPath = path.join(__dirname, 'bin/htlsp.exe');
-    // const args = getAnalyzerArgs(logger);
-    logger.info(`Spawning ${vmPath}`); // with args ${JSON.stringify(args)}`);
-    const process = processes_1.safeToolSpawn(undefined, vmPath, []);
+    const vmPath = path.join(sdks.dart, constants_1.dartVMPath);
+    // const args = getAnalyzerArgs(logger, sdks);
+    const hetuLangServerPath = path.join(__dirname, 'bin/htlsp.dill');
+    const args = ['compile', 'kernel', hetuLangServerPath];
+    logger.info(`Executing command: ${vmPath} ${JSON.stringify(args)}`);
+    const process = processes_1.safeToolSpawn(undefined, vmPath, args);
     logger.info(`    PID: ${process.pid}`);
     const reader = process.stdout.pipe(new LoggingTransform(logger, "<=="));
     const writer = new LoggingTransform(logger, "==>");
@@ -4212,9 +4213,10 @@ const fs_1 = __webpack_require__(/*! ../../shared/utils/fs */ "./src/shared/util
 const promises_1 = __webpack_require__(/*! ../../shared/utils/promises */ "./src/shared/utils/promises.ts");
 const utils_2 = __webpack_require__(/*! ../../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
 class LspFileTracker {
-    constructor(logger, analyzer) {
+    constructor(logger, analyzer, wsContext) {
         this.logger = logger;
         this.analyzer = analyzer;
+        this.wsContext = wsContext;
         this.disposables = [];
         this.outlines = {};
         this.flutterOutlines = {};
@@ -4229,11 +4231,6 @@ class LspFileTracker {
                 const filePath = fs_1.fsPath(vscode_1.Uri.parse(n.uri));
                 this.outlines[filePath] = n.outline;
                 this.onOutlineEmitter.fire(n);
-            });
-            this.analyzer.onNotification(custom_protocol_1.PublishFlutterOutlineNotification.type, (n) => {
-                const filePath = fs_1.fsPath(vscode_1.Uri.parse(n.uri));
-                this.flutterOutlines[filePath] = n.outline;
-                this.onFlutterOutlineEmitter.fire(n);
             });
         });
     }
@@ -4311,10 +4308,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.config = void 0;
+exports.config = exports.ResourceConfig = void 0;
 const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
-const utils_1 = __webpack_require__(/*! ./utils */ "./src/extension/utils.ts");
-const misc_1 = __webpack_require__(/*! ./utils/misc */ "./src/extension/utils/misc.ts");
+const utils_1 = __webpack_require__(/*! ../shared/utils */ "./src/shared/utils.ts");
+const utils_2 = __webpack_require__(/*! ./utils */ "./src/extension/utils.ts");
 const processes_1 = __webpack_require__(/*! ./utils/processes */ "./src/extension/utils/processes.ts");
 class Config {
     constructor() {
@@ -4328,14 +4325,14 @@ class Config {
     }
     getConfig(key, defaultValue) {
         const value = this.config.get(key, defaultValue);
-        return misc_1.nullToUndefined(value);
+        return utils_1.nullToUndefined(value);
     }
     getWorkspaceConfig(key) {
         const c = this.config.inspect(key);
         if (c && c.workspaceValue)
-            return misc_1.nullToUndefined(c.workspaceValue);
+            return utils_1.nullToUndefined(c.workspaceValue);
         if (c && c.workspaceFolderValue)
-            return misc_1.nullToUndefined(c.workspaceFolderValue);
+            return utils_1.nullToUndefined(c.workspaceFolderValue);
         return undefined;
     }
     setConfig(key, value, target) {
@@ -4350,37 +4347,40 @@ class Config {
     get analyzeAngularTemplates() { return this.getConfig("analyzeAngularTemplates", true); }
     get analyzerAdditionalArgs() { return this.getConfig("analyzerAdditionalArgs", []); }
     get analyzerDiagnosticsPort() { return this.getConfig("analyzerDiagnosticsPort", null); }
-    get analyzerInstrumentationLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("analyzerInstrumentationLogFile", null))); }
-    get analyzerLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("analyzerLogFile", null))); }
-    get analyzerPath() { return utils_1.resolvePaths(this.getConfig("analyzerPath", null)); }
+    get analyzerInstrumentationLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("analyzerInstrumentationLogFile", null))); }
+    get analyzerLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("analyzerLogFile", null))); }
+    get analyzerPath() { return utils_2.resolvePaths(this.getConfig("analyzerPath", null)); }
     get analyzerSshHost() { return this.getConfig("analyzerSshHost", null); }
     get analyzerVmServicePort() { return this.getConfig("analyzerVmServicePort", null); }
-    get automaticCommentSlashes() { return this.getConfig("automaticCommentSlashes", "tripleSlash"); }
     get autoImportCompletions() { return this.getConfig("autoImportCompletions", true); }
+    get automaticCommentSlashes() { return this.getConfig("automaticCommentSlashes", "tripleSlash"); }
     get buildRunnerAdditionalArgs() { return this.getConfig("buildRunnerAdditionalArgs", []); }
     get checkForSdkUpdates() { return this.getConfig("checkForSdkUpdates", true); }
+    get cliConsole() { return this.getConfig("cliConsole", "debugConsole"); }
     get closingLabels() { return this.getConfig("closingLabels", true); }
     get debugExtensionBackendProtocol() { return this.getConfig("debugExtensionBackendProtocol", "ws"); }
     get debugExternalLibraries() { return this.getConfig("debugExternalLibraries", false); }
     get debugSdkLibraries() { return this.getConfig("debugSdkLibraries", false); }
     get devToolsBrowser() { return this.getConfig("devToolsBrowser", "chrome"); }
-    get devToolsLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("devToolsLogFile", null))); }
+    get devToolsLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("devToolsLogFile", null))); }
     get devToolsPort() { return this.getConfig("devToolsPort", null); }
     get devToolsReuseWindows() { return this.getConfig("devToolsReuseWindows", true); }
     get devToolsTheme() { return this.getConfig("devToolsTheme", "dark"); }
     get embedDevTools() { return this.getConfig("embedDevTools", true); }
     get enableSdkFormatter() { return this.getConfig("enableSdkFormatter", true); }
+    get enableServerSnippets() { return this.getConfig("enableServerSnippets", false); }
     get enableSnippets() { return this.getConfig("enableSnippets", true); }
     get env() { return this.getConfig("env", {}); }
     get evaluateToStringInDebugViews() { return this.getConfig("evaluateToStringInDebugViews", true); }
-    get extensionLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("extensionLogFile", null))); }
+    get experimentalDartDapPath() { return utils_2.resolvePaths(this.getConfig("experimentalDartDapPath", null)); }
+    get extensionLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("extensionLogFile", null))); }
     get flutterAdbConnectOnChromeOs() { return this.getConfig("flutterAdbConnectOnChromeOs", false); }
     get flutterCreateAndroidLanguage() { return this.getConfig("flutterCreateAndroidLanguage", "kotlin"); }
     get flutterCreateIOSLanguage() { return this.getConfig("flutterCreateIOSLanguage", "swift"); }
     get flutterCreateOffline() { return this.getConfig("flutterCreateOffline", false); }
     get flutterCreateOrganization() { return this.getConfig("flutterCreateOrganization", null); }
     get flutterCustomEmulators() { return this.getConfig("flutterCustomEmulators", []); }
-    get flutterDaemonLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("flutterDaemonLogFile", null))); }
+    get flutterDaemonLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("flutterDaemonLogFile", null))); }
     get flutterGutterIcons() { return this.getConfig("flutterGutterIcons", true); }
     get flutterHotReloadOnSave() {
         const value = this.getConfig("flutterHotReloadOnSave", "manual");
@@ -4394,13 +4394,14 @@ class Config {
     }
     get flutterHotRestartOnSave() { return this.getConfig("flutterHotRestartOnSave", true); }
     get flutterOutline() { return this.getConfig("flutterOutline", true); }
-    get flutterRunLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("flutterRunLogFile", null))); }
-    get flutterScreenshotPath() { return utils_1.resolvePaths(this.getConfig("flutterScreenshotPath", null)); }
-    get flutterSdkPath() { return utils_1.resolvePaths(this.getConfig("flutterSdkPath", null)); }
-    get flutterSdkPaths() { return this.getConfig("flutterSdkPaths", []).map(utils_1.resolvePaths); }
+    get flutterRunLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("flutterRunLogFile", null))); }
+    get flutterScreenshotPath() { return utils_2.resolvePaths(this.getConfig("flutterScreenshotPath", null)); }
+    get flutterSdkPath() { return utils_2.resolvePaths(this.getConfig("flutterSdkPath", null)); }
+    get flutterSdkPaths() { return this.getConfig("flutterSdkPaths", []).map(utils_2.resolvePaths); }
     get flutterSelectDeviceWhenConnected() { return this.getConfig("flutterSelectDeviceWhenConnected", true); }
+    get flutterShowEmulators() { return this.getConfig("flutterShowEmulators", "local"); }
     get flutterShowWebServerDevice() { return this.getConfig("flutterShowWebServerDevice", "remote"); }
-    get flutterTestLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("flutterTestLogFile", null))); }
+    get flutterTestLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("flutterTestLogFile", null))); }
     get flutterWebRenderer() { return this.getConfig("flutterWebRenderer", "auto"); }
     get hotReloadProgress() { return this.getConfig("hotReloadProgress", "notification"); }
     get lspSnippetTextEdits() { return this.getConfig("lspSnippetTextEdits", true); }
@@ -4415,14 +4416,14 @@ class Config {
     get previewHotReloadOnSaveWatcher() { return this.getConfig("previewHotReloadOnSaveWatcher", false); }
     get previewLsp() { return this.getConfig("previewLsp", null); }
     get promptToRunIfErrors() { return this.getConfig("promptToRunIfErrors", true); }
-    get pubTestLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("pubTestLogFile", null))); }
-    get sdkPath() { return utils_1.resolvePaths(this.getConfig("sdkPath", null)); }
-    get sdkPaths() { return this.getConfig("sdkPaths", []).map(utils_1.resolvePaths); }
+    get pubTestLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("pubTestLogFile", null))); }
+    get sdkPath() { return utils_2.resolvePaths(this.getConfig("sdkPath", null)); }
+    get sdkPaths() { return this.getConfig("sdkPaths", []).map(utils_2.resolvePaths); }
     get shareDevToolsWithFlutter() { return this.getConfig("shareDevToolsWithFlutter", true); }
     get showDartPadSampleCodeLens() { return this.getConfig("showDartPadSampleCodeLens", true); }
     get showDevToolsDebugToolBarButtons() { return this.getConfig("showDevToolsDebugToolBarButtons", true); }
-    get showInspectorNotificationsForWidgetErrors() { return this.getConfig("showInspectorNotificationsForWidgetErrors", true); }
     get showIgnoreQuickFixes() { return this.getConfig("showIgnoreQuickFixes", true); }
+    get showInspectorNotificationsForWidgetErrors() { return this.getConfig("showInspectorNotificationsForWidgetErrors", true); }
     get showMainCodeLens() { return this.getConfig("showMainCodeLens", true); }
     get showSkippedTests() { return this.getConfig("showSkippedTests", true); }
     get showTestCodeLens() { return this.getConfig("showTestCodeLens", true); }
@@ -4430,16 +4431,16 @@ class Config {
     get triggerSignatureHelpAutomatically() { return this.getConfig("triggerSignatureHelpAutomatically", false); }
     get updateImportsOnRename() { return this.getConfig("updateImportsOnRename", true); }
     get useKnownChromeOSPorts() { return this.getConfig("useKnownChromeOSPorts", true); }
-    get vmServiceLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("vmServiceLogFile", null))); }
+    get vmServiceLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("vmServiceLogFile", null))); }
     get warnWhenEditingFilesInPubCache() { return this.getConfig("warnWhenEditingFilesInPubCache", true); }
     get warnWhenEditingFilesOutsideWorkspace() { return this.getConfig("warnWhenEditingFilesOutsideWorkspace", true); }
-    get webDaemonLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("webDaemonLogFile", null))); }
+    get webDaemonLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("webDaemonLogFile", null))); }
     // Helpers
     get useDevToolsDarkTheme() { return this.devToolsTheme === "dark"; }
     get openTestViewOnFailure() { return this.openTestView.indexOf("testFailure") !== -1; }
     get openTestViewOnStart() { return this.openTestView.indexOf("testRunStart") !== -1; }
-    get workspaceSdkPath() { return utils_1.resolvePaths(this.getWorkspaceConfig("sdkPath")); }
-    get workspaceFlutterSdkPath() { return utils_1.resolvePaths(this.getWorkspaceConfig("flutterSdkPath")); }
+    get workspaceSdkPath() { return utils_2.resolvePaths(this.getWorkspaceConfig("sdkPath")); }
+    get workspaceFlutterSdkPath() { return utils_2.resolvePaths(this.getWorkspaceConfig("flutterSdkPath")); }
     // Options that can be set programatically.
     setCheckForSdkUpdates(value) { return this.setConfig("checkForSdkUpdates", value, vscode_1.ConfigurationTarget.Global); }
     setFlutterSdkPath(value) { return this.setConfig("flutterSdkPath", value, vscode_1.ConfigurationTarget.Workspace); }
@@ -4464,42 +4465,44 @@ class ResourceConfig {
         this.config = vscode_1.workspace.getConfiguration("dart", this.uri);
     }
     getConfig(key, defaultValue) {
-        return misc_1.nullToUndefined(this.config.get(key, defaultValue));
+        return utils_1.nullToUndefined(this.config.get(key, defaultValue));
     }
     get analysisExcludedFolders() { return this.getConfig("analysisExcludedFolders", []); }
-    get analyzerInstrumentationLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("analyzerInstrumentationLogFile", null))); }
-    get analyzerLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("analyzerLogFile", null))); }
-    get analyzerPath() { return utils_1.resolvePaths(this.getConfig("analyzerPath", null)); }
-    get devToolsLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("devToolsLogFile", null))); }
+    get analyzerInstrumentationLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("analyzerInstrumentationLogFile", null))); }
+    get analyzerLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("analyzerLogFile", null))); }
+    get analyzerPath() { return utils_2.resolvePaths(this.getConfig("analyzerPath", null)); }
+    get completeFunctionCalls() { return this.getConfig("completeFunctionCalls", true); }
+    get devToolsLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("devToolsLogFile", null))); }
     get doNotFormat() { return this.getConfig("doNotFormat", []); }
     get enableCompletionCommitCharacters() { return this.getConfig("enableCompletionCommitCharacters", false); }
     get evaluateGettersInDebugViews() { return this.getConfig("evaluateGettersInDebugViews", true); }
-    get extensionLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("extensionLogFile", null))); }
+    get extensionLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("extensionLogFile", null))); }
     get flutterAdditionalArgs() { return this.getConfig("flutterAdditionalArgs", []); }
     get flutterAttachAdditionalArgs() { return this.getConfig("flutterAttachAdditionalArgs", []); }
-    get flutterRunAdditionalArgs() { return this.getConfig("flutterRunAdditionalArgs", null); }
-    get flutterTestAdditionalArgs() { return this.getConfig("flutterTestAdditionalArgs", []); }
-    get flutterDaemonLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("flutterDaemonLogFile", null))); }
-    get flutterRunLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("flutterRunLogFile", null))); }
-    get flutterScreenshotPath() { return utils_1.resolvePaths(this.getConfig("flutterScreenshotPath", null)); }
-    get flutterSdkPath() { return utils_1.resolvePaths(this.getConfig("flutterSdkPath", null)); }
-    get flutterSdkPaths() { return this.getConfig("flutterSdkPaths", []).map(utils_1.resolvePaths); }
+    get flutterDaemonLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("flutterDaemonLogFile", null))); }
+    get flutterRunAdditionalArgs() { return this.getConfig("flutterRunAdditionalArgs", []); }
+    get flutterRunLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("flutterRunLogFile", null))); }
+    get flutterScreenshotPath() { return utils_2.resolvePaths(this.getConfig("flutterScreenshotPath", null)); }
+    get flutterSdkPath() { return utils_2.resolvePaths(this.getConfig("flutterSdkPath", null)); }
+    get flutterSdkPaths() { return this.getConfig("flutterSdkPaths", []).map(utils_2.resolvePaths); }
     get flutterStructuredErrors() { return this.getConfig("flutterStructuredErrors", true); }
-    get flutterTestLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("flutterTestLogFile", null))); }
+    get flutterTestAdditionalArgs() { return this.getConfig("flutterTestAdditionalArgs", []); }
+    get flutterTestLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("flutterTestLogFile", null))); }
     get flutterTrackWidgetCreation() { return this.getConfig("flutterTrackWidgetCreation", true); }
     get insertArgumentPlaceholders() { return this.getConfig("insertArgumentPlaceholders", true); }
     get lineLength() { return this.getConfig("lineLength", 80); }
     get promptToGetPackages() { return this.getConfig("promptToGetPackages", true); }
     get pubAdditionalArgs() { return this.getConfig("pubAdditionalArgs", []); }
-    get pubTestLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("pubTestLogFile", null))); }
+    get pubTestLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("pubTestLogFile", null))); }
     get runPubGetOnPubspecChanges() { return this.getConfig("runPubGetOnPubspecChanges", true); }
-    get sdkPath() { return utils_1.resolvePaths(this.getConfig("sdkPath", null)); }
-    get sdkPaths() { return this.getConfig("sdkPaths", []).map(utils_1.resolvePaths); }
+    get sdkPath() { return utils_2.resolvePaths(this.getConfig("sdkPath", null)); }
+    get sdkPaths() { return this.getConfig("sdkPaths", []).map(utils_2.resolvePaths); }
     get showDartDeveloperLogs() { return this.getConfig("showDartDeveloperLogs", true); }
     get vmAdditionalArgs() { return this.getConfig("vmAdditionalArgs", []); }
-    get vmServiceLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("vmServiceLogFile", null))); }
-    get webDaemonLogFile() { return utils_1.createFolderForFile(utils_1.resolvePaths(this.getConfig("webDaemonLogFile", null))); }
+    get vmServiceLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("vmServiceLogFile", null))); }
+    get webDaemonLogFile() { return utils_2.createFolderForFile(utils_2.resolvePaths(this.getConfig("webDaemonLogFile", null))); }
 }
+exports.ResourceConfig = ResourceConfig;
 exports.config = new Config();
 
 
@@ -4523,33 +4526,43 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.deactivate = exports.activate = exports.SERVICE_CONTEXT_PREFIX = exports.SERVICE_EXTENSION_CONTEXT_PREFIX = void 0;
+exports.deactivate = exports.activate = exports.ringLog = exports.SERVICE_CONTEXT_PREFIX = exports.SERVICE_EXTENSION_CONTEXT_PREFIX = exports.HETU_MODE = void 0;
 const vs = __webpack_require__(/*! vscode */ "vscode");
+const constants_1 = __webpack_require__(/*! ../shared/constants */ "./src/shared/constants.ts");
+const enums_1 = __webpack_require__(/*! ../shared/enums */ "./src/shared/enums.ts");
 const logging_1 = __webpack_require__(/*! ../shared/logging */ "./src/shared/logging.ts");
 const symbols_1 = __webpack_require__(/*! ../shared/symbols */ "./src/shared/symbols.ts");
 const utils_1 = __webpack_require__(/*! ../shared/utils */ "./src/shared/utils.ts");
 const fs_1 = __webpack_require__(/*! ../shared/utils/fs */ "./src/shared/utils/fs.ts");
-const uri_handler_1 = __webpack_require__(/*! ../shared/vscode/uri_handlers/uri_handler */ "./src/shared/vscode/uri_handlers/uri_handler.ts");
+const extension_utils_1 = __webpack_require__(/*! ../shared/vscode/extension_utils */ "./src/shared/vscode/extension_utils.ts");
 const utils_2 = __webpack_require__(/*! ../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
 const workspace_1 = __webpack_require__(/*! ../shared/vscode/workspace */ "./src/shared/vscode/workspace.ts");
 const analyzer_lsp_1 = __webpack_require__(/*! ./analysis/analyzer_lsp */ "./src/extension/analysis/analyzer_lsp.ts");
 const channels_1 = __webpack_require__(/*! ./commands/channels */ "./src/extension/commands/channels.ts");
 const config_1 = __webpack_require__(/*! ./config */ "./src/extension/config.ts");
 const analyzer_status_reporter_1 = __webpack_require__(/*! ./lsp/analyzer_status_reporter */ "./src/extension/lsp/analyzer_status_reporter.ts");
+const utils_3 = __webpack_require__(/*! ./sdk/utils */ "./src/extension/sdk/utils.ts");
 const util = __webpack_require__(/*! ./utils */ "./src/extension/utils.ts");
 const log_1 = __webpack_require__(/*! ./utils/log */ "./src/extension/utils/log.ts");
 const processes_1 = __webpack_require__(/*! ./utils/processes */ "./src/extension/utils/processes.ts");
-const HETU_MODE = { language: "hetu", scheme: "file" };
+exports.HETU_MODE = { language: "hetu", scheme: "file" };
 const PROJECT_LOADED = "hetu-script:anyProjectLoaded";
 exports.SERVICE_EXTENSION_CONTEXT_PREFIX = "hetu-script:serviceExtension.";
 exports.SERVICE_CONTEXT_PREFIX = "hetu-script:service.";
 let lspAnalyzer;
-let analysisRoots = [];
+let showTodos;
 let previousSettings;
 const loggers = [];
+let ringLogger;
 const logger = new logging_1.EmittingLogger();
+// Keep a running in-memory buffer of last 200 log events we can give to the
+// user when something crashed even if they don't have disk-logging enabled.
+exports.ringLog = new logging_1.RingLog(200);
 function activate(context, isRestart = false) {
     return __awaiter(this, void 0, void 0, function* () {
+        // Ring logger is only set up once and presist over silent restarts.
+        if (!ringLogger)
+            ringLogger = logger.onLog((message) => exports.ringLog.log(message.toLine(500)));
         context.subscriptions.push(logging_1.logToConsole(logger));
         const extContext = workspace_1.Context.for(context);
         // Wire up a reload command that will re-initialise everything.
@@ -4560,17 +4573,27 @@ function activate(context, isRestart = false) {
             yield activate(context, true);
             logger.info("Done!");
         })));
-        lspAnalyzer = new analyzer_lsp_1.LspAnalyzer(logger);
+        const sdkUtils = new utils_3.SdkUtils(logger);
+        const workspaceContextUnverified = yield sdkUtils.scanWorkspace();
+        util.logTime("initWorkspace");
+        // Set up log files.
+        setupLog(config_1.config.analyzerLogFile, enums_1.LogCategory.Analyzer);
+        if (!workspaceContextUnverified.sdks.dart || (workspaceContextUnverified.hasAnyFlutterProjects && !workspaceContextUnverified.sdks.flutter)) {
+            // Don't set anything else up; we can't work like this!
+            return sdkUtils.handleMissingSdks(context, workspaceContextUnverified);
+        }
+        const workspaceContext = workspaceContextUnverified;
+        const sdks = workspaceContext.sdks;
+        const writableConfig = workspaceContext.config;
+        lspAnalyzer = new analyzer_lsp_1.LspAnalyzer(logger, sdks, workspaceContext);
         const lspClient = lspAnalyzer.client;
         context.subscriptions.push(lspAnalyzer);
-        const activeFileFilters = [HETU_MODE];
+        const activeFileFilters = [exports.HETU_MODE];
         // TODO: Push the differences into the Analyzer classes so we can have one reporter.
         // tslint:disable-next-line: no-unused-expression
         new analyzer_status_reporter_1.LspAnalyzerStatusReporter(lspAnalyzer);
         // Handle config changes so we can reanalyze if necessary.
-        context.subscriptions.push(vs.workspace.onDidChangeConfiguration(() => handleConfigurationChange()));
-        // Register URI handler.
-        context.subscriptions.push(vs.window.registerUriHandler(new uri_handler_1.HetuUriHandler()));
+        context.subscriptions.push(vs.workspace.onDidChangeConfiguration(() => handleConfigurationChange(sdks)));
         // TODO: LSP equivs of the others...
         // Refactors
         // TypeHierarchyCommand
@@ -4587,31 +4610,66 @@ function activate(context, isRestart = false) {
         }
         // Handle changes to the workspace.
         // Set the roots, handling project changes that might affect SDKs.
-        context.subscriptions.push(vs.workspace.onDidChangeWorkspaceFolders((f) => __awaiter(this, void 0, void 0, function* () {
-            recalculateAnalysisRoots();
-        })));
+        // context.subscriptions.push(vs.workspace.onDidChangeWorkspaceFolders(async (f) => {
+        //   recalculateAnalysisRoots();
+        // }));
         return {
             [symbols_1.internalApiSymbol]: {
                 analyzer: lspAnalyzer,
-                logger,
                 context: extContext,
                 currentAnalysis: () => lspAnalyzer.onCurrentAnalysisComplete,
+                envUtils: utils_2.envUtils,
                 fileTracker: lspAnalyzer.fileTracker,
                 getLogHeader: log_1.getLogHeader,
                 getOutputChannel: channels_1.getOutputChannel,
                 initialAnalysis: lspAnalyzer.onInitialAnalysis,
+                logger,
                 nextAnalysis: () => lspAnalyzer.onNextAnalysisComplete,
                 safeToolSpawn: processes_1.safeToolSpawn,
+                workspaceContext,
             },
         };
     });
 }
 exports.activate = activate;
-function recalculateAnalysisRoots() {
-    const workspaceFolders = utils_2.getDartWorkspaceFolders();
-    analysisRoots = workspaceFolders.map((w) => fs_1.fsPath(w.uri));
+function setupLog(logFile, category) {
+    if (logFile)
+        loggers.push(logging_1.captureLogs(logger, logFile, log_1.getLogHeader(), config_1.config.maxLogLineLength, [category]));
 }
-function handleConfigurationChange() {
+function buildLogHeaders(logger, workspaceContext) {
+    log_1.clearLogHeader();
+    log_1.addToLogHeader(() => `!! PLEASE REVIEW THIS LOG FOR SENSITIVE INFORMATION BEFORE SHARING !!`);
+    log_1.addToLogHeader(() => ``);
+    log_1.addToLogHeader(() => `Dart Code extension: ${extension_utils_1.extensionVersion}`);
+    log_1.addToLogHeader(() => {
+        const ext = vs.extensions.getExtension(constants_1.flutterExtensionIdentifier);
+        return `Flutter extension: ${ext.packageJSON.version} (${ext.isActive ? "" : "not "}activated)`;
+    });
+    log_1.addToLogHeader(() => ``);
+    log_1.addToLogHeader(() => `App: ${vs.env.appName}`);
+    log_1.addToLogHeader(() => `Version: ${vs.version}`);
+    log_1.addToLogHeader(() => `Platform: ${constants_1.platformDisplayName}`);
+    if (workspaceContext) {
+        log_1.addToLogHeader(() => ``);
+        log_1.addToLogHeader(() => `Workspace type: ${workspaceContext.workspaceTypeDescription}`);
+        log_1.addToLogHeader(() => `Analyzer type: ${workspaceContext.config.useLsp ? "LSP" : "DAS"}`);
+        log_1.addToLogHeader(() => `Multi-root?: ${vs.workspace.workspaceFolders && vs.workspace.workspaceFolders.length > 1}`);
+        const sdks = workspaceContext.sdks;
+        log_1.addToLogHeader(() => ``);
+        log_1.addToLogHeader(() => `Dart SDK:\n    Loc: ${sdks.dart}\n    Ver: ${sdks.dartVersion}`);
+        log_1.addToLogHeader(() => `Flutter SDK:\n    Loc: ${sdks.flutter}\n    Ver: ${sdks.flutterVersion}`);
+    }
+    log_1.addToLogHeader(() => ``);
+    log_1.addToLogHeader(() => `HTTP_PROXY: ${process.env.HTTP_PROXY}`);
+    log_1.addToLogHeader(() => `NO_PROXY: ${process.env.NO_PROXY}`);
+    // Any time the log headers are rebuilt, we should re-log them.
+    logger === null || logger === void 0 ? void 0 : logger.info(log_1.getLogHeader());
+}
+function handleConfigurationChange(sdks) {
+    // TODOs
+    const newShowTodoSetting = config_1.config.showTodos;
+    const todoSettingChanged = showTodos !== newShowTodoSetting;
+    showTodos = newShowTodoSetting;
     // SDK
     const newSettings = getSettingsThatRequireRestart();
     const settingsChanged = previousSettings !== newSettings;
@@ -4646,6 +4704,9 @@ function deactivate(isRestart = false) {
     });
 }
 exports.deactivate = deactivate;
+function setCommandVisiblity(enable, workspaceContext) {
+    vs.commands.executeCommand("setContext", PROJECT_LOADED, enable);
+}
 
 
 /***/ }),
@@ -4701,6 +4762,391 @@ exports.LspAnalyzerStatusReporter = LspAnalyzerStatusReporter;
 
 /***/ }),
 
+/***/ "./src/extension/project.ts":
+/*!**********************************!*\
+  !*** ./src/extension/project.ts ***!
+  \**********************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.locateBestProjectRoot = exports.UPGRADE_TO_WORKSPACE_FOLDERS = void 0;
+const path = __webpack_require__(/*! path */ "path");
+const fs_1 = __webpack_require__(/*! ../shared/utils/fs */ "./src/shared/utils/fs.ts");
+const utils_1 = __webpack_require__(/*! ./utils */ "./src/extension/utils.ts");
+exports.UPGRADE_TO_WORKSPACE_FOLDERS = "Mark Projects as Workspace Folders";
+function locateBestProjectRoot(folder) {
+    if (!folder || !utils_1.isWithinWorkspace(folder))
+        return undefined;
+    let dir = folder;
+    while (dir !== path.dirname(dir)) {
+        if (fs_1.hasPubspec(dir) || fs_1.hasPackagesFile(dir))
+            return dir;
+        dir = path.dirname(dir);
+    }
+    return undefined;
+}
+exports.locateBestProjectRoot = locateBestProjectRoot;
+
+
+/***/ }),
+
+/***/ "./src/extension/sdk/utils.ts":
+/*!************************************!*\
+  !*** ./src/extension/sdk/utils.ts ***!
+  \************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.hasDartAnalysisServer = exports.referencesFlutterSdk = exports.SdkUtils = void 0;
+const fs = __webpack_require__(/*! fs */ "fs");
+const path = __webpack_require__(/*! path */ "path");
+const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
+const constants_1 = __webpack_require__(/*! ../../shared/constants */ "./src/shared/constants.ts");
+const logging_1 = __webpack_require__(/*! ../../shared/logging */ "./src/shared/logging.ts");
+const package_map_1 = __webpack_require__(/*! ../../shared/pub/package_map */ "./src/shared/pub/package_map.ts");
+const utils_1 = __webpack_require__(/*! ../../shared/utils */ "./src/shared/utils.ts");
+const fs_1 = __webpack_require__(/*! ../../shared/utils/fs */ "./src/shared/utils/fs.ts");
+const promises_1 = __webpack_require__(/*! ../../shared/utils/promises */ "./src/shared/utils/promises.ts");
+const utils_2 = __webpack_require__(/*! ../../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
+const workspace_1 = __webpack_require__(/*! ../../shared/workspace */ "./src/shared/workspace.ts");
+const config_1 = __webpack_require__(/*! ../config */ "./src/extension/config.ts");
+const extension_1 = __webpack_require__(/*! ../extension */ "./src/extension/extension.ts");
+const utils_3 = __webpack_require__(/*! ../utils */ "./src/extension/utils.ts");
+// TODO: Tidy this class up (it exists mainly to share logger).
+class SdkUtils {
+    constructor(logger) {
+        this.logger = logger;
+        this.hasShownActivationFailure = false;
+    }
+    handleMissingSdks(context, workspaceContext) {
+        // Note: This code only runs if we fail to find the Dart SDK, or fail to find the Flutter SDK
+        // and are in a Flutter project. In the case where we fail to find the Flutter SDK but are not
+        // in a Flutter project (eg. we ran Flutter Doctor without the extension activated) then
+        // this code will not be run as the extension will activate normally, and then the command-handling
+        // code for each command will detect the missing Flutter SDK and respond appropriately.
+        // Only show the "startup" message if we didn't already show another message as
+        // a result of one of the above commands beinv invoked.
+        if (!this.hasShownActivationFailure) {
+            if (workspaceContext.hasAnyFlutterProjects) {
+                this.showRelevantActivationFailureMessage(workspaceContext, true);
+            }
+            else if (workspaceContext.hasAnyStandardDartProjects) {
+                this.showRelevantActivationFailureMessage(workspaceContext, false);
+            }
+            else {
+                this.logger.error("No Dart or Flutter SDK was found. Suppressing prompt because it doesn't appear that a Dart/Flutter project is open.");
+            }
+        }
+        return;
+    }
+    showRelevantActivationFailureMessage(workspaceContext, isFlutter, commandToReRun) {
+        if (isFlutter && workspaceContext.sdks.flutter && !workspaceContext.sdks.dart) {
+            this.showFluttersDartSdkActivationFailure();
+        }
+        else if (isFlutter) {
+            this.showFlutterActivationFailure(commandToReRun);
+        }
+        else {
+            this.showDartActivationFailure(commandToReRun);
+        }
+        if (!this.hasShownActivationFailure) {
+            this.hasShownActivationFailure = true;
+        }
+    }
+    showFluttersDartSdkActivationFailure() {
+        // tslint:disable-next-line: no-floating-promises
+        utils_3.promptToReloadExtension("Could not find Dart in your Flutter SDK. " +
+            "Please run 'flutter doctor' in the terminal then reload the project once all issues are resolved.", "Reload", // eslint-disable-line @typescript-eslint/indent
+        true);
+    }
+    showFlutterActivationFailure(commandToReRun) {
+        // tslint:disable-next-line: no-floating-promises
+        this.showSdkActivationFailure("Flutter", (p) => this.findFlutterSdk(p), constants_1.FLUTTER_DOWNLOAD_URL, (p) => config_1.config.setGlobalFlutterSdkPath(p), commandToReRun);
+    }
+    showDartActivationFailure(commandToReRun) {
+        // tslint:disable-next-line: no-floating-promises
+        this.showSdkActivationFailure("Dart", (p) => this.findDartSdk(p), constants_1.DART_DOWNLOAD_URL, (p) => config_1.config.setGlobalDartSdkPath(p), commandToReRun);
+    }
+    showSdkActivationFailure(sdkType, search, downloadUrl, saveSdkPath, commandToReRun) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const locateAction = "Locate SDK";
+            const downloadAction = "Download SDK";
+            let displayMessage = `Could not find a ${sdkType} SDK. ` +
+                `Please ensure ${sdkType.toLowerCase()} is installed and in your PATH (you may need to restart).`;
+            while (true) {
+                const ringLogContents = extension_1.ringLog.toString();
+                const selectedItem = yield vscode_1.window.showErrorMessage(displayMessage, locateAction, downloadAction, constants_1.showLogAction);
+                // TODO: Refactor/reformat/comment this code - it's messy and hard to understand!
+                if (selectedItem === locateAction) {
+                    const selectedFolders = yield vscode_1.window.showOpenDialog({ canSelectFolders: true, openLabel: `Set ${sdkType} SDK folder` });
+                    if (selectedFolders && selectedFolders.length > 0) {
+                        const matchingSdkFolder = search(selectedFolders.map(fs_1.fsPath));
+                        if (matchingSdkFolder) {
+                            yield saveSdkPath(matchingSdkFolder);
+                            yield utils_3.promptToReloadExtension();
+                            if (commandToReRun) {
+                                vscode_1.commands.executeCommand(commandToReRun);
+                            }
+                            break;
+                        }
+                        else {
+                            displayMessage = `That folder does not appear to be a ${sdkType} SDK.`;
+                        }
+                    }
+                }
+                else if (selectedItem === downloadAction) {
+                    yield utils_2.envUtils.openInBrowser(downloadUrl);
+                    break;
+                }
+                else if (selectedItem === constants_1.showLogAction) {
+                    utils_3.openLogContents(undefined, ringLogContents);
+                    break;
+                }
+                else {
+                    break;
+                }
+            }
+        });
+    }
+    scanWorkspace() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.logger.info("Searching for SDKs...");
+            const pathOverride = process.env.DART_PATH_OVERRIDE || "";
+            const normalPath = process.env.PATH || "";
+            const paths = (pathOverride + path.delimiter + normalPath).split(path.delimiter).filter((p) => p);
+            this.logger.info("Environment PATH:");
+            for (const p of paths)
+                this.logger.info(`    ${p}`);
+            // If we are running the analyzer remotely over SSH, we only support an analyzer, since none
+            // of the other SDKs will work remotely. Also, there is no need to validate the sdk path,
+            // since that file will exist on a remote machine.
+            if (config_1.config.analyzerSshHost) {
+                return new workspace_1.WorkspaceContext({
+                    dart: config_1.config.sdkPath,
+                    dartSdkIsFromFlutter: false,
+                    flutter: undefined,
+                }, {}, false, false, false);
+            }
+            // TODO: This has gotten very messy and needs tidying up...
+            let firstFlutterMobileProject;
+            let hasAnyFlutterProject = false;
+            let hasAnyFlutterMobileProject = false;
+            let hasAnyWebProject = false;
+            let hasAnyStandardDartProject = false;
+            const possibleProjects = yield utils_2.getAllProjectFolders(this.logger, utils_3.getExcludedFolders);
+            // Scan through them all to figure out what type of projects we have.
+            for (const folder of possibleProjects) {
+                const hasPubspecFile = fs_1.hasPubspec(folder);
+                const refsFlutter = hasPubspecFile && referencesFlutterSdk(folder);
+                const refsWeb = false; // hasPubspecFile && referencesWeb(folder);
+                const hasFlutterCreateProjectTriggerFile = fs.existsSync(path.join(folder, constants_1.FLUTTER_CREATE_PROJECT_TRIGGER_FILE));
+                // Special case to detect the Flutter repo root, so we always consider it a Flutter project and will use the local SDK
+                const isFlutterRepo = fs.existsSync(path.join(folder, "bin/flutter")) && fs.existsSync(path.join(folder, "bin/cache/dart-sdk"));
+                // Since we just blocked on a lot of sync FS, yield.
+                yield promises_1.resolvedPromise;
+                const isSomethingFlutter = refsFlutter || hasFlutterCreateProjectTriggerFile || isFlutterRepo;
+                if (isSomethingFlutter) {
+                    this.logger.info(`Found Flutter project at ${folder}:
+			Mobile? ${refsFlutter}
+			Web? ${refsWeb}
+			Create Trigger? ${hasFlutterCreateProjectTriggerFile}
+			Flutter Repo? ${isFlutterRepo}`);
+                }
+                // Track the first Flutter Project so we can try finding the Flutter SDK from its packages file.
+                firstFlutterMobileProject = firstFlutterMobileProject || (isSomethingFlutter ? folder : undefined);
+                // Set some flags we'll use to construct the workspace, so we know what things we need to light up.
+                hasAnyFlutterProject = hasAnyFlutterProject || isSomethingFlutter;
+                hasAnyFlutterMobileProject = hasAnyFlutterMobileProject || refsFlutter || hasFlutterCreateProjectTriggerFile;
+                hasAnyWebProject = hasAnyWebProject || refsWeb;
+                hasAnyStandardDartProject = hasAnyStandardDartProject || (!isSomethingFlutter && hasPubspecFile);
+            }
+            // Certain types of workspaces will have special config, so read them here.
+            const workspaceConfig = {};
+            // Helper that searches for a specific folder/file up the tree and
+            // runs some specific processing.
+            const workspaceFolders = utils_2.getDartWorkspaceFolders();
+            const topLevelFolders = workspaceFolders.map((w) => fs_1.fsPath(w.uri));
+            const processWorkspaceType = (search, process) => __awaiter(this, void 0, void 0, function* () {
+                for (const folder of topLevelFolders) {
+                    const root = yield search(this.logger, folder);
+                    if (root) {
+                        process(this.logger, workspaceConfig, root);
+                        return root;
+                    }
+                }
+                return undefined;
+            });
+            const flutterSdkSearchPaths = [
+                workspaceConfig === null || workspaceConfig === void 0 ? void 0 : workspaceConfig.flutterSdkHome,
+                config_1.config.flutterSdkPath,
+                process.env.FLUTTER_ROOT,
+                constants_1.isLinux ? "~/snap/flutter/common/flutter" : undefined,
+                "~/flutter-sdk",
+                "~/.flutter-sdk",
+            ].concat(paths).filter(utils_1.notUndefined);
+            const flutterSdkPath = this.findFlutterSdk(flutterSdkSearchPaths);
+            // Since we just blocked on a lot of sync FS, yield.
+            yield promises_1.resolvedPromise;
+            const dartSdkSearchPaths = [
+                constants_1.isMac ? workspaceConfig === null || workspaceConfig === void 0 ? void 0 : workspaceConfig.dartSdkHomeMac : workspaceConfig === null || workspaceConfig === void 0 ? void 0 : workspaceConfig.dartSdkHomeLinux,
+                firstFlutterMobileProject && flutterSdkPath && path.join(flutterSdkPath, "bin/cache/dart-sdk"),
+                config_1.config.sdkPath,
+            ].concat(paths)
+                // The above array only has the Flutter SDK	in the search path if we KNOW it's a flutter
+                // project, however this doesn't cover the activating-to-run-flutter.createProject so
+                // we need to always look in the flutter SDK, but only AFTER the users PATH so that
+                // we don't prioritise it over any real Dart versions.
+                .concat([flutterSdkPath && path.join(flutterSdkPath, "bin/cache/dart-sdk")])
+                .filter(utils_1.notUndefined);
+            // Since we just blocked on a lot of sync FS, yield.
+            yield promises_1.resolvedPromise;
+            const dartSdkPath = this.findDartSdk(dartSdkSearchPaths);
+            // Since we just blocked on a lot of sync FS, yield.
+            yield promises_1.resolvedPromise;
+            return new workspace_1.WorkspaceContext({
+                dart: dartSdkPath,
+                dartSdkIsFromFlutter: !!dartSdkPath && utils_1.isDartSdkFromFlutter(dartSdkPath),
+                dartVersion: fs_1.getSdkVersion(this.logger, { sdkRoot: dartSdkPath }),
+                flutter: flutterSdkPath,
+                flutterVersion: fs_1.getSdkVersion(this.logger, { sdkRoot: flutterSdkPath, versionFile: workspaceConfig === null || workspaceConfig === void 0 ? void 0 : workspaceConfig.flutterVersionFile }),
+            }, workspaceConfig, hasAnyFlutterMobileProject, hasAnyWebProject, hasAnyStandardDartProject);
+        });
+    }
+    findDartSdk(folders) {
+        return this.searchPaths(folders, constants_1.executableNames.dart, (p) => this.hasExecutable(p, constants_1.dartVMPath) && exports.hasDartAnalysisServer(p));
+    }
+    findFlutterSdk(folders) {
+        return this.searchPaths(folders, constants_1.executableNames.flutter, (p) => this.hasExecutable(p, constants_1.flutterPath));
+    }
+    hasExecutable(folder, executablePath) {
+        const fullPath = path.join(folder, executablePath);
+        return fs.existsSync(fullPath) && fs.statSync(fullPath).isFile();
+    }
+    searchPaths(paths, executableFilename, postFilter) {
+        this.logger.info(`Searching for ${executableFilename}`);
+        let sdkPaths = paths
+            .filter((p) => p)
+            .map(utils_3.resolvePaths)
+            .filter(utils_1.notUndefined);
+        // Any that don't end with bin, add it on (as an extra path) since some of our
+        // paths may come from places that don't already include it (for ex. the
+        // user config.sdkPath).
+        const isBinFolder = (f) => ["bin", "sbin"].indexOf(path.basename(f)) !== -1;
+        sdkPaths = utils_1.flatMap(sdkPaths, (p) => isBinFolder(p) ? [p] : [p, path.join(p, "bin")]);
+        // Add on the executable name, as we need to do filtering based on the resolve path.
+        // TODO: Make the list unique, but preserve the order of the first occurrences. We currently
+        // have uniq() and unique(), so also consolidate them.
+        this.logger.info(`    Looking for ${executableFilename} in:`);
+        for (const p of sdkPaths)
+            this.logger.info(`        ${p}`);
+        // Restrict only to the paths that have the executable.
+        sdkPaths = sdkPaths.filter((p) => fs.existsSync(path.join(p, executableFilename)));
+        this.logger.info(`    Found at:`);
+        for (const p of sdkPaths)
+            this.logger.info(`        ${p}`);
+        // Convert all the paths to their resolved locations.
+        sdkPaths = sdkPaths.map((p) => {
+            const fullPath = path.join(p, executableFilename);
+            // In order to handle symlinks on the binary (not folder), we need to add the executableName before calling realpath.
+            const realExecutableLocation = p && fs.realpathSync(fullPath);
+            if (realExecutableLocation.toLowerCase() !== fullPath.toLowerCase())
+                this.logger.info(`Following symlink: ${fullPath} ==> ${realExecutableLocation}`);
+            // Then we need to take the executable name and /bin back off
+            return path.dirname(path.dirname(realExecutableLocation));
+        });
+        // Now apply any post-filters.
+        this.logger.info("    Candidate paths to be post-filtered:");
+        for (const p of sdkPaths)
+            this.logger.info(`        ${p}`);
+        const sdkPath = sdkPaths.find(postFilter || (() => true));
+        if (sdkPath)
+            this.logger.info(`    Found at ${sdkPath}`);
+        this.logger.info(`    Returning SDK path ${sdkPath} for ${executableFilename}`);
+        return sdkPath;
+    }
+}
+exports.SdkUtils = SdkUtils;
+function referencesFlutterSdk(folder) {
+    if (folder && fs_1.hasPubspec(folder)) {
+        const regex = new RegExp("sdk\\s*:\\s*flutter", "i");
+        return regex.test(fs.readFileSync(path.join(folder, "pubspec.yaml")).toString());
+    }
+    return false;
+}
+exports.referencesFlutterSdk = referencesFlutterSdk;
+function extractFlutterSdkPathFromPackagesFile(projectFolder) {
+    if (!fs.existsSync(projectFolder))
+        return undefined;
+    let packagePath = package_map_1.PackageMap.loadForProject(logging_1.nullLogger, projectFolder).getPackagePath("flutter");
+    if (!packagePath)
+        return undefined;
+    // Set windows slashes to / while manipulating.
+    if (constants_1.isWin) {
+        packagePath = packagePath.replace(/\\/g, "/");
+    }
+    // Make sure ends with a slash.
+    if (!packagePath.endsWith("/"))
+        packagePath = packagePath + "/";
+    // Trim suffix we don't need.
+    const pathSuffix = "/packages/flutter/lib/";
+    if (packagePath.endsWith(pathSuffix)) {
+        packagePath = packagePath.substr(0, packagePath.length - pathSuffix.length);
+    }
+    // Make sure ends with a slash.
+    if (!packagePath.endsWith("/"))
+        packagePath = packagePath + "/";
+    // Append bin if required.
+    if (!packagePath.endsWith("/bin/")) {
+        packagePath = packagePath + "bin/";
+    }
+    // Set windows paths back.
+    if (constants_1.isWin) {
+        packagePath = packagePath.replace(/\//g, "\\");
+        if (packagePath.startsWith("\\"))
+            packagePath = packagePath.substring(1);
+    }
+    return packagePath;
+}
+function findRootContaining(folder, childName, expectFile = false) {
+    if (folder) {
+        // Walk up the directories from the workspace root, and see if there
+        // exists a directory which has `childName` file/directory as a child.
+        let child = folder;
+        while (child) {
+            try {
+                const stat = fs.statSync(path.join(child, childName));
+                if (expectFile ? stat.isFile() : stat.isDirectory()) {
+                    return child;
+                }
+            }
+            catch (_a) { }
+            const parentDir = path.dirname(child);
+            if (child === parentDir)
+                break;
+            child = parentDir;
+        }
+    }
+    return undefined;
+}
+const hasDartAnalysisServer = (folder) => fs.existsSync(path.join(folder, constants_1.analyzerSnapshotPath));
+exports.hasDartAnalysisServer = hasDartAnalysisServer;
+
+
+/***/ }),
+
 /***/ "./src/extension/utils.ts":
 /*!********************************!*\
   !*** ./src/extension/utils.ts ***!
@@ -4719,14 +5165,44 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getExcludedFolders = exports.openLogContents = exports.logTime = exports.promptToReloadExtension = exports.escapeShell = exports.isValidEntryFile = exports.isInsideFolderNamed = exports.isHetuFile = exports.isWithinWorkspace = exports.isAnalyzableAndInWorkspace = exports.isAnalyzable = exports.createFolderForFile = exports.homeRelativePath = exports.resolvePaths = void 0;
+exports.getExcludedFolders = exports.openLogContents = exports.logTime = exports.promptToReloadExtension = exports.escapeShell = exports.getLatestSdkVersion = exports.isValidEntryFile = exports.isInsideFolderNamed = exports.isDartFile = exports.projectShouldUsePubForTests = exports.isTestFolder = exports.isPubRunnableTestFile = exports.isTestFile = exports.isTestFileOrFolder = exports.isWithinWorkspace = exports.isAnalyzableAndInWorkspace = exports.shouldHotReloadFor = exports.isAnalyzable = exports.createFolderForFile = exports.homeRelativePath = exports.resolvePaths = exports.isFlutterProjectFolder = exports.isPathInsideFlutterProject = exports.isInsideFlutterProject = exports.isFlutterWorkspaceFolder = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
+const https = __webpack_require__(/*! https */ "https");
 const os = __webpack_require__(/*! os */ "os");
 const path = __webpack_require__(/*! path */ "path");
 const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
 const constants_1 = __webpack_require__(/*! ../shared/constants */ "./src/shared/constants.ts");
 const fs_1 = __webpack_require__(/*! ../shared/utils/fs */ "./src/shared/utils/fs.ts");
+const utils_1 = __webpack_require__(/*! ../shared/vscode/utils */ "./src/shared/vscode/utils.ts");
 const config_1 = __webpack_require__(/*! ./config */ "./src/extension/config.ts");
+const extension_1 = __webpack_require__(/*! ./extension */ "./src/extension/extension.ts");
+const project_1 = __webpack_require__(/*! ./project */ "./src/extension/project.ts");
+const utils_2 = __webpack_require__(/*! ./sdk/utils */ "./src/extension/sdk/utils.ts");
+function isFlutterWorkspaceFolder(folder) {
+    return !!(folder && utils_1.isDartWorkspaceFolder(folder) && isFlutterProjectFolder(fs_1.fsPath(folder.uri)));
+}
+exports.isFlutterWorkspaceFolder = isFlutterWorkspaceFolder;
+function isInsideFlutterProject(uri) {
+    if (!uri)
+        return false;
+    const projectRoot = project_1.locateBestProjectRoot(fs_1.fsPath(uri));
+    if (projectRoot)
+        return isFlutterProjectFolder(projectRoot);
+    else
+        return isFlutterWorkspaceFolder(vscode_1.workspace.getWorkspaceFolder(uri));
+}
+exports.isInsideFlutterProject = isInsideFlutterProject;
+function isPathInsideFlutterProject(path) {
+    const projectRoot = project_1.locateBestProjectRoot(path);
+    if (!projectRoot)
+        return false;
+    return isFlutterProjectFolder(projectRoot);
+}
+exports.isPathInsideFlutterProject = isPathInsideFlutterProject;
+function isFlutterProjectFolder(folder) {
+    return utils_2.referencesFlutterSdk(folder);
+}
+exports.isFlutterProjectFolder = isFlutterProjectFolder;
 function resolvePaths(p) {
     if (typeof p !== "string")
         return undefined;
@@ -4777,6 +5253,15 @@ function isAnalyzable(file) {
         || (extension !== undefined && analyzableFileExtensions.includes(extension));
 }
 exports.isAnalyzable = isAnalyzable;
+function shouldHotReloadFor(file) {
+    if (file.isUntitled || !fs_1.fsPath(file.uri) || file.uri.scheme !== "file")
+        return false;
+    const reloadableFileExtensions = ["dart", "htm", "html", "css"];
+    const extName = path.extname(fs_1.fsPath(file.uri));
+    const extension = extName ? extName.substr(1) : undefined;
+    return extension !== undefined && reloadableFileExtensions.includes(extension);
+}
+exports.shouldHotReloadFor = shouldHotReloadFor;
 function isAnalyzableAndInWorkspace(file) {
     return isAnalyzable(file) && isWithinWorkspace(fs_1.fsPath(file.uri));
 }
@@ -4785,10 +5270,44 @@ function isWithinWorkspace(file) {
     return !!vscode_1.workspace.getWorkspaceFolder(vscode_1.Uri.file(file));
 }
 exports.isWithinWorkspace = isWithinWorkspace;
-function isHetuFile(file) {
-    return !!file && path.extname(file.toLowerCase()) === ".ht" && fs.existsSync(file) && fs.statSync(file).isFile();
+function isTestFileOrFolder(path) {
+    return !!path && (isTestFile(path) || isTestFolder(path));
 }
-exports.isHetuFile = isHetuFile;
+exports.isTestFileOrFolder = isTestFileOrFolder;
+function isTestFile(file) {
+    // To be a test, you must be _test.dart AND inside a test folder.
+    // https://github.com/Dart-Code/Dart-Code/issues/1165
+    // https://github.com/Dart-Code/Dart-Code/issues/2021
+    // https://github.com/Dart-Code/Dart-Code/issues/2034
+    return !!file && isDartFile(file)
+        && (isInsideFolderNamed(file, "test")
+            || isInsideFolderNamed(file, "integration_test")
+            || isInsideFolderNamed(file, "test_driver")
+            || config_1.config.allowTestsOutsideTestFolder)
+        && file.toLowerCase().endsWith("_test.dart");
+}
+exports.isTestFile = isTestFile;
+// Similar to isTestFile, but requires that the file is _test.dart because it will be used as
+// an entry point for pub test running.
+function isPubRunnableTestFile(file) {
+    return !!file && isDartFile(file) && file.toLowerCase().endsWith("_test.dart");
+}
+exports.isPubRunnableTestFile = isPubRunnableTestFile;
+function isTestFolder(path) {
+    return !!path
+        && (isInsideFolderNamed(path, "test")
+            || isInsideFolderNamed(path, "integration_test")) && fs.existsSync(path)
+        && fs.statSync(path).isDirectory();
+}
+exports.isTestFolder = isTestFolder;
+function projectShouldUsePubForTests(folder, config) {
+    return fs_1.hasPubspec(folder) && !config.useVmForTests;
+}
+exports.projectShouldUsePubForTests = projectShouldUsePubForTests;
+function isDartFile(file) {
+    return !!file && path.extname(file.toLowerCase()) === ".dart" && fs.existsSync(file) && fs.statSync(file).isFile();
+}
+exports.isDartFile = isDartFile;
 function isInsideFolderNamed(file, folderName) {
     if (!file)
         return false;
@@ -4801,31 +5320,34 @@ function isInsideFolderNamed(file, folderName) {
 }
 exports.isInsideFolderNamed = isInsideFolderNamed;
 function isValidEntryFile(file) {
-    return file && isHetuFile(file) &&
-        (isInsideFolderNamed(file, "bin") || isInsideFolderNamed(file, "tool") || isInsideFolderNamed(file, "test_driver")
-            || file.endsWith(`lib${path.sep}main.ht`));
+    return file && isDartFile(file) &&
+        (isTestFile(file)
+            || isInsideFolderNamed(file, "bin") || isInsideFolderNamed(file, "tool") || isInsideFolderNamed(file, "test_driver")
+            || file.endsWith(`lib${path.sep}main.dart`));
 }
 exports.isValidEntryFile = isValidEntryFile;
-// export function getLatestSdkVersion(): Promise<string> {
-//   return new Promise<string>((resolve, reject) => {
-//     const options: https.RequestOptions = {
-//       hostname: "storage.googleapis.com",
-//       method: "GET",
-//       path: "/dart-archive/channels/stable/release/latest/VERSION",
-//       port: 443,
-//     };
-//     const req = https.request(options, (resp) => {
-//       if (!resp || !resp.statusCode || resp.statusCode < 200 || resp.statusCode > 300) {
-//         reject({ message: `Failed to get Dart SDK Version ${resp && resp.statusCode}: ${resp && resp.statusMessage}` });
-//       } else {
-//         resp.on("data", (d) => {
-//           resolve(JSON.parse(d.toString()).version);
-//         });
-//       }
-//     });
-//     req.end();
-//   });
-// }
+function getLatestSdkVersion() {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: "storage.googleapis.com",
+            method: "GET",
+            path: "/dart-archive/channels/stable/release/latest/VERSION",
+            port: 443,
+        };
+        const req = https.request(options, (resp) => {
+            if (!resp || !resp.statusCode || resp.statusCode < 200 || resp.statusCode > 300) {
+                reject({ message: `Failed to get Dart SDK Version ${resp && resp.statusCode}: ${resp && resp.statusMessage}` });
+            }
+            else {
+                resp.on("data", (d) => {
+                    resolve(JSON.parse(d.toString()).version);
+                });
+            }
+        });
+        req.end();
+    });
+}
+exports.getLatestSdkVersion = getLatestSdkVersion;
 // Escapes a set of command line arguments so that the escaped string is suitable for passing as an argument
 // to another shell command.
 // Implementation is taken from https://github.com/xxorax/node-shell-escape
@@ -4846,21 +5368,24 @@ function promptToReloadExtension(prompt, buttonText, offerLog) {
     return __awaiter(this, void 0, void 0, function* () {
         const restartAction = buttonText || "Reload";
         const actions = offerLog ? [restartAction, constants_1.showLogAction] : [restartAction];
+        const ringLogContents = extension_1.ringLog.toString();
         let showPromptAgain = true;
+        const tempLogPath = path.join(os.tmpdir(), `log-${fs_1.getRandomInt(0x1000, 0x10000).toString(16)}.txt`);
         while (showPromptAgain) {
             showPromptAgain = false;
             const chosenAction = prompt && (yield vscode_1.window.showInformationMessage(prompt, ...actions));
             if (chosenAction === constants_1.showLogAction) {
                 showPromptAgain = true;
+                openLogContents(undefined, ringLogContents, tempLogPath);
             }
             else if (!prompt || chosenAction === restartAction) {
-                vscode_1.commands.executeCommand("_hetu.reloadExtension");
+                vscode_1.commands.executeCommand("_dart.reloadExtension");
             }
         }
     });
 }
 exports.promptToReloadExtension = promptToReloadExtension;
-const shouldLogTimings = true;
+const shouldLogTimings = false;
 const start = process.hrtime.bigint();
 let last = start;
 function pad(str, length) {
@@ -5186,8 +5711,9 @@ exports.Analyzer = Analyzer;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = exports.alwaysOpenAction = exports.openDevToolsAction = exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.analyzerSnapshotPath = exports.hetuVMPath = exports.getExecutableName = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = void 0;
-exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.validClassNameRegex = exports.validMethodNameRegex = exports.cancelAction = exports.runFlutterCreateDotAction = exports.runFlutterCreateDotPrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.initializingFlutterMessage = exports.initializeSnapPrompt = exports.modifyingFilesOutsideWorkspaceInfoUrl = void 0;
+exports.alwaysOpenAction = exports.openDevToolsAction = exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.FLUTTER_DOWNLOAD_URL = exports.DART_DOWNLOAD_URL = exports.androidStudioPaths = exports.analyzerSnapshotPath = exports.pubSnapshotPath = exports.flutterPath = exports.pubPath = exports.dartDocPath = exports.dartVMPath = exports.getExecutableName = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = void 0;
+exports.validClassNameRegex = exports.validMethodNameRegex = exports.cancelAction = exports.runFlutterCreatePrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.snapFlutterBinaryPath = exports.snapBinaryPath = exports.initializingFlutterMessage = exports.modifyingFilesOutsideWorkspaceInfoUrl = exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = void 0;
+exports.MAX_VERSION = exports.defaultLaunchJson = exports.dartRecommendedConfig = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 exports.dartCodeExtensionIdentifier = "Dart-Code.dart-code";
 exports.flutterExtensionIdentifier = "Dart-Code.flutter";
@@ -5204,12 +5730,22 @@ exports.platformDisplayName = exports.isWin ? "win" : exports.isMac ? "mac" : ex
 exports.platformEol = exports.isWin ? "\r\n" : "\n";
 exports.androidStudioExecutableNames = exports.isWin ? ["studio64.exe"] : ["studio.sh", "studio"];
 exports.executableNames = {
-    hetu: exports.isWin ? "hetu.exe" : "hetu",
+    dart: exports.isWin ? "dart.exe" : "dart",
+    dartdoc: exports.isWin ? "dartdoc.bat" : "dartdoc",
+    flutter: exports.isWin ? "flutter.bat" : "flutter",
+    pub: exports.isWin ? "pub.bat" : "pub",
 };
 const getExecutableName = (cmd) => { var _a; return (_a = exports.executableNames[cmd]) !== null && _a !== void 0 ? _a : cmd; };
 exports.getExecutableName = getExecutableName;
-exports.hetuVMPath = "bin/" + exports.executableNames.hetu;
-exports.analyzerSnapshotPath = "bin/analysis_server.dart.snapshot";
+exports.dartVMPath = "bin/" + exports.executableNames.dart;
+exports.dartDocPath = "bin/" + exports.executableNames.dartdoc;
+exports.pubPath = "bin/" + exports.executableNames.pub;
+exports.flutterPath = "bin/" + exports.executableNames.flutter;
+exports.pubSnapshotPath = "bin/snapshots/pub.dart.snapshot";
+exports.analyzerSnapshotPath = "bin/snapshots/analysis_server.dart.snapshot";
+exports.androidStudioPaths = exports.androidStudioExecutableNames.map((s) => "bin/" + s);
+exports.DART_DOWNLOAD_URL = "https://dart.dev/get-dart";
+exports.FLUTTER_DOWNLOAD_URL = "https://flutter.dev/setup/";
 exports.IS_LSP_CONTEXT = "dart-code:isLsp";
 exports.DART_TEST_SUITE_NODE_CONTEXT = "dart-code:testSuiteNode";
 exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = "dart-code:testContainerNodeWithSkips";
@@ -5245,8 +5781,9 @@ exports.flutterSurveyAnalyticsText = "By clicking on this link you agree to shar
 exports.takeSurveyAction = "Take Survey";
 exports.skipThisSurveyAction = "Skip This Survey";
 exports.modifyingFilesOutsideWorkspaceInfoUrl = "https://dartcode.org/docs/modifying-files-outside-workspace/";
-exports.initializeSnapPrompt = "The Flutter snap is installed but not initialized. Would you like to initialize it now?";
 exports.initializingFlutterMessage = "Initializing Flutter. This may take a few minutes.";
+exports.snapBinaryPath = "/usr/bin/snap";
+exports.snapFlutterBinaryPath = "/snap/bin/flutter";
 // Minutes.
 exports.fiveMinutesInMs = 1000 * 60 * 5;
 exports.tenMinutesInMs = 1000 * 60 * 10;
@@ -5286,9 +5823,8 @@ exports.openSettingsAction = "Open Settings File";
 exports.reactivateDevToolsAction = "Reactivate DevTools";
 exports.vmServiceListeningBannerPattern = new RegExp("Observatory (?:listening on|.* is available at:) (http:.+)");
 exports.vmServiceHttpLinkPattern = new RegExp("(http://[\\d\\.:]+/)");
-const runFlutterCreateDotPrompt = (platformType) => `You must run 'flutter create .' to create the files required to use the ${platformType} platform for this project.`;
-exports.runFlutterCreateDotPrompt = runFlutterCreateDotPrompt;
-exports.runFlutterCreateDotAction = "Run 'flutter create .'";
+const runFlutterCreatePrompt = (platformType) => `Run 'flutter create --platforms ${platformType} .' to enable support for this platform?`;
+exports.runFlutterCreatePrompt = runFlutterCreatePrompt;
 exports.cancelAction = "Cancel";
 exports.validMethodNameRegex = new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$");
 exports.validClassNameRegex = exports.validMethodNameRegex;
@@ -5334,6 +5870,8 @@ exports.defaultLaunchJson = JSON.stringify({
     ],
     "version": "0.2.0",
 }, undefined, "\t");
+// This indicates that a version is the latest possible.
+exports.MAX_VERSION = "999.999.999";
 
 
 /***/ }),
@@ -5402,9 +5940,16 @@ var VersionStatus;
 var LogCategory;
 (function (LogCategory) {
     LogCategory[LogCategory["General"] = 0] = "General";
-    LogCategory[LogCategory["CommandProcesses"] = 1] = "CommandProcesses";
-    LogCategory[LogCategory["Analyzer"] = 2] = "Analyzer";
-    LogCategory[LogCategory["VmService"] = 3] = "VmService";
+    LogCategory[LogCategory["CI"] = 1] = "CI";
+    LogCategory[LogCategory["CommandProcesses"] = 2] = "CommandProcesses";
+    LogCategory[LogCategory["DevTools"] = 3] = "DevTools";
+    LogCategory[LogCategory["Analyzer"] = 4] = "Analyzer";
+    LogCategory[LogCategory["PubTest"] = 5] = "PubTest";
+    LogCategory[LogCategory["FlutterDaemon"] = 6] = "FlutterDaemon";
+    LogCategory[LogCategory["FlutterRun"] = 7] = "FlutterRun";
+    LogCategory[LogCategory["FlutterTest"] = 8] = "FlutterTest";
+    LogCategory[LogCategory["VmService"] = 9] = "VmService";
+    LogCategory[LogCategory["WebDaemon"] = 10] = "WebDaemon";
 })(LogCategory = exports.LogCategory || (exports.LogCategory = {}));
 var LogSeverity;
 (function (LogSeverity) {
@@ -5656,6 +6201,149 @@ exports.safeSpawn = safeSpawn;
 
 /***/ }),
 
+/***/ "./src/shared/pub/package_map.ts":
+/*!***************************************!*\
+  !*** ./src/shared/pub/package_map.ts ***!
+  \***************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PackageMap = void 0;
+const fs = __webpack_require__(/*! fs */ "fs");
+const path = __webpack_require__(/*! path */ "path");
+const url = __webpack_require__(/*! url */ "url");
+const utils_1 = __webpack_require__(/*! ../utils */ "./src/shared/utils.ts");
+const fs_1 = __webpack_require__(/*! ../utils/fs */ "./src/shared/utils/fs.ts");
+class PackageMap {
+    static findPackagesFile(entryPoint) {
+        if (typeof entryPoint !== "string")
+            return undefined;
+        const file = utils_1.findFileInAncestor([path.join(".dart_tool/package_config.json"), ".packages"], entryPoint);
+        return file;
+    }
+    static loadForProject(logger, projectFolder) {
+        const paths = [
+            ".dart_tool/package_config.json",
+            ".packages",
+        ];
+        for (const p of paths) {
+            const fullP = path.join(projectFolder, p);
+            if (fs.existsSync(fullP))
+                return this.load(logger, fullP);
+        }
+        return new MissingPackageMap();
+    }
+    static load(logger, file) {
+        if (!file)
+            return new MissingPackageMap();
+        try {
+            if (path.basename(file).toLowerCase() === ".packages")
+                return new DotPackagesPackageMap(file);
+            else
+                return new PackageConfigJsonPackageMap(logger, file);
+        }
+        catch (e) {
+            logger.error(e);
+            return new MissingPackageMap();
+        }
+    }
+    getPackagePath(name) {
+        return this.packages[name];
+    }
+    resolvePackageUri(uri) {
+        if (!uri)
+            return undefined;
+        let name = uri;
+        if (name.startsWith("package:"))
+            name = name.substring(8);
+        const index = name.indexOf("/");
+        if (index === -1)
+            return undefined;
+        const rest = name.substring(index + 1);
+        name = name.substring(0, index);
+        const location = this.getPackagePath(name);
+        if (location)
+            return path.join(location, rest);
+        else
+            return undefined;
+    }
+}
+exports.PackageMap = PackageMap;
+class MissingPackageMap extends PackageMap {
+    get packages() {
+        return {};
+    }
+    getPackagePath(name) {
+        return undefined;
+    }
+    resolvePackageUri(uri) {
+        return undefined;
+    }
+}
+class DotPackagesPackageMap extends PackageMap {
+    constructor(file) {
+        super();
+        this.map = {};
+        if (!file)
+            return;
+        this.localPackageRoot = path.dirname(file);
+        const lines = fs.readFileSync(file, { encoding: "utf8" }).split("\n");
+        for (let line of lines) {
+            line = line.trim();
+            if (line.length === 0 || line.startsWith("#"))
+                continue;
+            const index = line.indexOf(":");
+            if (index !== -1) {
+                const name = line.substr(0, index);
+                const rest = line.substring(index + 1);
+                if (rest.startsWith("file:"))
+                    this.map[name] = utils_1.uriToFilePath(rest);
+                else
+                    this.map[name] = path.join(this.localPackageRoot, rest);
+            }
+        }
+    }
+    get packages() { return Object.assign({}, this.map); }
+}
+class PackageConfigJsonPackageMap extends PackageMap {
+    constructor(logger, packageConfigPath) {
+        super();
+        this.logger = logger;
+        this.packageConfigPath = packageConfigPath;
+        this.map = {};
+        const json = fs.readFileSync(this.packageConfigPath, "utf8");
+        this.config = JSON.parse(json);
+        for (const pkg of this.config.packages) {
+            try {
+                const packageConfigFolderPath = path.dirname(this.packageConfigPath);
+                const packageRootPath = this.getPathForUri(pkg.rootUri);
+                const packageLibPath = this.getPathForUri(pkg.packageUri);
+                this.map[pkg.name] = path.resolve(packageConfigFolderPath, packageRootPath !== null && packageRootPath !== void 0 ? packageRootPath : "", packageLibPath !== null && packageLibPath !== void 0 ? packageLibPath : "");
+            }
+            catch (e) {
+                logger.error(`Failed to resolve path for package ${pkg.name}: ${e}`);
+            }
+        }
+    }
+    getPathForUri(uri) {
+        if (!uri)
+            return undefined;
+        const parsedPath = fs_1.normalizeSlashes(uri.startsWith("file:")
+            ? url.fileURLToPath(uri)
+            : unescape(uri));
+        return parsedPath.endsWith(path.sep) ? parsedPath : `${parsedPath}${path.sep}`;
+    }
+    get packages() { return Object.assign({}, this.map); }
+    getPackagePath(name) {
+        return this.map[name];
+    }
+}
+
+
+/***/ }),
+
 /***/ "./src/shared/symbols.ts":
 /*!*******************************!*\
   !*** ./src/shared/symbols.ts ***!
@@ -5690,7 +6378,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.disposeAll = exports.escapeDartString = exports.generateTestNameFromFileName = exports.clamp = exports.asHex = exports.asHexColor = exports.notNullOrUndefined = exports.notNull = exports.notUndefined = exports.BufferedLogger = exports.errorString = exports.usingCustomScript = exports.isStableSdk = exports.versionIsAtLeast = exports.uriToFilePath = exports.findFileInAncestor = exports.PromiseCompleter = exports.escapeRegExp = exports.filenameSafe = exports.flatMapAsync = exports.flatMap = exports.uniq = void 0;
+exports.disposeAll = exports.isWebDevice = exports.escapeDartString = exports.generateTestNameFromFileName = exports.clamp = exports.asHex = exports.asHexColor = exports.notNullOrUndefined = exports.notNull = exports.notUndefined = exports.nullToUndefined = exports.BufferedLogger = exports.errorString = exports.usingCustomScript = exports.isStableSdk = exports.pubVersionIsAtLeast = exports.versionIsAtLeast = exports.isDartSdkFromFlutter = exports.uriToFilePath = exports.findFileInAncestor = exports.PromiseCompleter = exports.escapeRegExp = exports.filenameSafe = exports.flatMapAsync = exports.flatMap = exports.uniq = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 const path = __webpack_require__(/*! path */ "path");
 const semver = __webpack_require__(/*! semver */ "./node_modules/semver/index.js");
@@ -5764,10 +6452,36 @@ function uriToFilePath(uri, returnWindowsPath = constants_1.isWin) {
     return filePath;
 }
 exports.uriToFilePath = uriToFilePath;
+function isDartSdkFromFlutter(dartSdkPath) {
+    const possibleFlutterSdkPath = path.join(path.dirname(path.dirname(path.dirname(dartSdkPath))), "bin");
+    return fs.existsSync(path.join(possibleFlutterSdkPath, constants_1.executableNames.flutter));
+}
+exports.isDartSdkFromFlutter = isDartSdkFromFlutter;
 function versionIsAtLeast(inputVersion, requiredVersion) {
     return semver.gte(inputVersion, requiredVersion);
 }
 exports.versionIsAtLeast = versionIsAtLeast;
+function pubVersionIsAtLeast(inputVersion, requiredVersion) {
+    // Standard semver gt/lt
+    if (semver.gt(inputVersion, requiredVersion))
+        return true;
+    else if (semver.lt(inputVersion, requiredVersion))
+        return false;
+    // If the versions are equal, we need to handle build metadata like pub does.
+    // https://github.com/dart-lang/pub_semver/
+    // If only one of them has build metadata, it's newest.
+    if (inputVersion.indexOf("+") !== -1 && requiredVersion.indexOf("+") === -1)
+        return true;
+    if (inputVersion.indexOf("+") === -1 && requiredVersion.indexOf("+") !== -1)
+        return false;
+    // Otherwise, since they're both otherwise equal and both have build
+    // metadata we can treat the build metadata like pre-release by converting
+    // it to pre-release (with -) or appending it to existing pre-release.
+    inputVersion = inputVersion.replace("+", inputVersion.indexOf("-") === -1 ? "-" : ".");
+    requiredVersion = requiredVersion.replace("+", requiredVersion.indexOf("-") === -1 ? "-" : ".");
+    return versionIsAtLeast(inputVersion, requiredVersion);
+}
+exports.pubVersionIsAtLeast = pubVersionIsAtLeast;
 function isStableSdk(sdkVersion) {
     // We'll consider empty versions as dev; stable versions will likely always
     // be shipped with valid version files.
@@ -5827,6 +6541,10 @@ class BufferedLogger {
     }
 }
 exports.BufferedLogger = BufferedLogger;
+function nullToUndefined(value) {
+    return (value === null ? undefined : value);
+}
+exports.nullToUndefined = nullToUndefined;
 function notUndefined(x) {
     return x !== undefined;
 }
@@ -5863,6 +6581,10 @@ function escapeDartString(input) {
     return input.replace(/(['"\\])/g, "\\$1");
 }
 exports.escapeDartString = escapeDartString;
+function isWebDevice(deviceId) {
+    return !!((deviceId === null || deviceId === void 0 ? void 0 : deviceId.startsWith("web")) || deviceId === "chrome" || deviceId === "edge");
+}
+exports.isWebDevice = isWebDevice;
 function disposeAll(disposables) {
     const toDispose = disposables.slice();
     disposables.length = 0;
@@ -5889,7 +6611,7 @@ exports.disposeAll = disposeAll;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.arrayStartsWith = exports.arraysEqual = exports.unique = exports.not = exports.sortBy = void 0;
+exports.arrayContainsArray = exports.arrayStartsWith = exports.arraysEqual = exports.unique = exports.not = exports.sortBy = void 0;
 function sortBy(items, f) {
     return items.sort((item1, item2) => {
         const r1 = f(item1);
@@ -5915,9 +6637,19 @@ function arraysEqual(items1, items2) {
 }
 exports.arraysEqual = arraysEqual;
 function arrayStartsWith(items1, items2) {
-    return items1.length >= items2.length && items1.slice(0, items2.length).every((val, i) => val === items2[i]);
+    return items1.length >= items2.length && arraysEqual(items1.slice(0, items2.length), items2);
 }
 exports.arrayStartsWith = arrayStartsWith;
+function arrayContainsArray(haystack, needle) {
+    // Loop over valid starting points for the subarray
+    for (let i = 0; i <= haystack.length - needle.length; i++) {
+        // Check if the relevant length sublist equals the other array.
+        if (arraysEqual(haystack.slice(i, i + needle.length), needle))
+            return true;
+    }
+    return false;
+}
+exports.arrayContainsArray = arrayContainsArray;
 
 
 /***/ }),
@@ -6190,39 +6922,45 @@ exports.waitFor = waitFor;
 
 /***/ }),
 
-/***/ "./src/shared/vscode/uri_handlers/uri_handler.ts":
-/*!*******************************************************!*\
-  !*** ./src/shared/vscode/uri_handlers/uri_handler.ts ***!
-  \*******************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ "./src/shared/vscode/extension_utils.ts":
+/*!**********************************************!*\
+  !*** ./src/shared/vscode/extension_utils.ts ***!
+  \**********************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.HetuUriHandler = void 0;
-const vs = __webpack_require__(/*! vscode */ "vscode");
-class HetuUriHandler {
-    handleUri(uri) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // const handlerPrefix = Object.keys(this.handlers).find((key) => uri.path.startsWith(key));
-            // if (handlerPrefix) {
-            // 	await this.handlers[handlerPrefix].handle(uri.path.substr(handlerPrefix.length));
-            // } else {
-            vs.window.showErrorMessage(`No handler for '${uri.path}'. Check you have the latest version of the Dart plugin and try again.`);
-            // }
-        });
-    }
+exports.checkHasFlutterExtension = exports.readJson = exports.docsIconPathFormat = exports.hasFlutterExtension = exports.isDevExtension = exports.vsCodeVersionConstraint = exports.extensionVersion = exports.extensionPath = void 0;
+const fs = __webpack_require__(/*! fs */ "fs");
+const path = __webpack_require__(/*! path */ "path");
+const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
+const constants_1 = __webpack_require__(/*! ../constants */ "./src/shared/constants.ts");
+exports.extensionPath = vscode_1.extensions.getExtension(constants_1.dartCodeExtensionIdentifier).extensionPath;
+exports.extensionVersion = getExtensionVersion();
+exports.vsCodeVersionConstraint = getVsCodeVersionConstraint();
+exports.isDevExtension = checkIsDevExtension();
+exports.hasFlutterExtension = checkHasFlutterExtension();
+exports.docsIconPathFormat = vscode_1.Uri.file(path.join(exports.extensionPath, "media/doc-icons/")).toString() + "$1%402x.png";
+function readJson(file) {
+    return JSON.parse(fs.readFileSync(file).toString());
 }
-exports.HetuUriHandler = HetuUriHandler;
+exports.readJson = readJson;
+function getExtensionVersion() {
+    const packageJson = readJson(path.join(exports.extensionPath, "package.json"));
+    return packageJson.version;
+}
+function getVsCodeVersionConstraint() {
+    const packageJson = readJson(path.join(exports.extensionPath, "package.json"));
+    return packageJson.engines.vscode;
+}
+function checkIsDevExtension() {
+    return exports.extensionVersion.endsWith("-dev");
+}
+function checkHasFlutterExtension() {
+    return vscode_1.extensions.getExtension(constants_1.flutterExtensionIdentifier) !== undefined;
+}
+exports.checkHasFlutterExtension = checkHasFlutterExtension;
 
 
 /***/ }),
@@ -6245,7 +6983,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createWatcher = exports.firstEditorColumn = exports.firstNonEditorColumn = exports.envUtils = exports.warnIfPathCaseMismatch = exports.trimTrailingSlashes = exports.showCode = exports.toRangeOnLine = exports.lspToPosition = exports.toPosition = exports.lspToRange = exports.toRange = exports.isDartWorkspaceFolder = exports.getAllProjectFolders = exports.getDartWorkspaceFolders = exports.isRunningLocally = exports.SourceSortMembersCodeActionKind = void 0;
+exports.createWatcher = exports.firstEditorColumn = exports.firstNonEditorColumn = exports.envUtils = exports.treeLabel = exports.warnIfPathCaseMismatch = exports.trimTrailingSlashes = exports.showCode = exports.toRangeOnLine = exports.lspToPosition = exports.toPosition = exports.lspToRange = exports.toRange = exports.isDartWorkspaceFolder = exports.getAllProjectFolders = exports.getDartWorkspaceFolders = exports.SourceSortMembersCodeActionKind = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 const url_1 = __webpack_require__(/*! url */ "url");
 const vs = __webpack_require__(/*! vscode */ "vscode");
@@ -6254,15 +6992,8 @@ const constants_1 = __webpack_require__(/*! ../constants */ "./src/shared/consta
 const logging_1 = __webpack_require__(/*! ../logging */ "./src/shared/logging.ts");
 const utils_1 = __webpack_require__(/*! ../utils */ "./src/shared/utils.ts");
 const fs_1 = __webpack_require__(/*! ../utils/fs */ "./src/shared/utils/fs.ts");
-const utils_cloud_1 = __webpack_require__(/*! ./utils_cloud */ "./src/shared/vscode/utils_cloud.ts");
 exports.SourceSortMembersCodeActionKind = vscode_1.CodeActionKind.Source.append("sortMembers");
 const dartExtension = vscode_1.extensions.getExtension(constants_1.dartCodeExtensionIdentifier);
-// The extension kind is declared as Workspace, but VS Code will return UI in the
-// case that there is no remote extension host.
-exports.isRunningLocally = 
-// Some cloud IDEs mis-report the extension kind, so if we _know_ something is a cloud IDE,
-// override that.
-!utils_cloud_1.isKnownCloudIde && (!dartExtension);
 function getDartWorkspaceFolders() {
     if (!vscode_1.workspace.workspaceFolders)
         return [];
@@ -6368,6 +7099,8 @@ class EnvUtils {
             const fakeAuthority = `${fakeHostname}:${fakePort}`;
             const uriToMap = uri.with({ scheme: fakeScheme, authority: fakeAuthority });
             logger.info(`Mapping URL: ${uriToMap.toString()}`);
+            // const mappedUri = await vsEnv.asExternalUri(uriToMap);
+            // logger.info(`Mapped URL: ${mappedUri.toString()}`);
             // Now we need to map the scheme back to WS if that's what was originally asked for, however
             // we need to take into account whether asExternalUri pushed is up to secure, so use
             // the http/https to decide which to go back to.
@@ -6389,6 +7122,12 @@ function uriToString(uri) {
         .replace(/%24/g, "$")
         .replace(/%5B/g, "[");
 }
+function treeLabel(item) {
+    if (!item.label || typeof item.label === "string")
+        return item.label;
+    // return item.label.label;
+}
+exports.treeLabel = treeLabel;
 exports.envUtils = new EnvUtils();
 function usedEditorColumns() {
     return new Set(vs.window.visibleTextEditors.map((e) => e.viewColumn).filter(utils_1.notUndefined));
@@ -6421,26 +7160,6 @@ exports.createWatcher = createWatcher;
 
 /***/ }),
 
-/***/ "./src/shared/vscode/utils_cloud.ts":
-/*!******************************************!*\
-  !*** ./src/shared/vscode/utils_cloud.ts ***!
-  \******************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-var _a, _b, _c, _d;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.cloudShellDefaultFlutterRunAdditionalArgs = exports.isKnownCloudIde = exports.isCloudShell = exports.isTheia = void 0;
-const vs = __webpack_require__(/*! vscode */ "vscode");
-exports.isTheia = (_b = (_a = vs.env.appName) === null || _a === void 0 ? void 0 : _a.includes("Theia")) !== null && _b !== void 0 ? _b : false;
-exports.isCloudShell = (_d = (_c = vs.env.appName) === null || _c === void 0 ? void 0 : _c.includes("Cloud Shell")) !== null && _d !== void 0 ? _d : false;
-exports.isKnownCloudIde = exports.isTheia || exports.isCloudShell;
-exports.cloudShellDefaultFlutterRunAdditionalArgs = ["--web-hostname", "any", "--disable-dds"];
-
-
-/***/ }),
-
 /***/ "./src/shared/vscode/workspace.ts":
 /*!****************************************!*\
   !*** ./src/shared/vscode/workspace.ts ***!
@@ -6458,22 +7177,8 @@ class Context {
     static for(context) {
         return new Context(context);
     }
-    get devToolsNotificationLastShown() { return this.context.globalState.get("devToolsNotificationLastShown"); }
-    set devToolsNotificationLastShown(value) { this.context.globalState.update("devToolsNotificationLastShown", value); }
-    get devToolsNotificationDoNotShow() { return !!this.context.globalState.get("devToolsNotificationDoNotShowAgain"); }
-    set devToolsNotificationDoNotShow(value) { this.context.globalState.update("devToolsNotificationDoNotShowAgain", value); }
-    get breakpointOutsideWorkspaceDoNotShow() { return !!this.context.globalState.get("breakpointOutsideWorkspaceDoNotShowAgain"); }
-    set breakpointOutsideWorkspaceDoNotShow(value) { this.context.globalState.update("breakpointOutsideWorkspaceDoNotShowAgain", value); }
-    getFlutterSurveyNotificationLastShown(id) { return this.context.globalState.get(`flutterSurvey${id}NotificationLastShown`); }
-    setFlutterSurveyNotificationLastShown(id, value) { this.context.globalState.update(`flutterSurvey${id}NotificationLastShown`, value); }
-    getFlutterSurveyNotificationDoNotShow(id) { return !!this.context.globalState.get(`flutterSurvey${id}NotificationDoNotShowAgain`); }
-    setFlutterSurveyNotificationDoNotShow(id, value) { this.context.globalState.update(`flutterSurvey${id}NotificationDoNotShowAgain`, value); }
-    get hasWarnedAboutFormatterSyntaxLimitation() { return !!this.context.globalState.get("hasWarnedAboutFormatterSyntaxLimitation"); }
-    set hasWarnedAboutFormatterSyntaxLimitation(value) { this.context.globalState.update("hasWarnedAboutFormatterSyntaxLimitation", value); }
-    get hasWarnedAboutPubUpgradeMajorVersionsPubpecMutation() { return !!this.context.globalState.get("hasWarnedAboutPubUpgradeMajorVersionsPubpecMutation"); }
-    set hasWarnedAboutPubUpgradeMajorVersionsPubpecMutation(value) { this.context.globalState.update("hasWarnedAboutPubUpgradeMajorVersionsPubpecMutation", value); }
-    get lastSeenVersion() { return this.context.globalState.get("lastSeenVersion"); }
-    set lastSeenVersion(value) { this.context.globalState.update("lastSeenVersion", value); }
+    // get lastSeenVersion(): string | undefined { return this.context.globalState.get("lastSeenVersion"); }
+    // set lastSeenVersion(value: string | undefined) { this.context.globalState.update("lastSeenVersion", value); }
     getPackageLastCheckedForUpdates(packageID) { return this.context.globalState.get(`packageLastCheckedForUpdates:${packageID}`); }
     setPackageLastCheckedForUpdates(packageID, value) { this.context.globalState.update(`packageLastCheckedForUpdates:${packageID}`, value); }
     update(key, value) {
@@ -6485,6 +7190,68 @@ class Context {
     get subscriptions() { return this.context.subscriptions; }
 }
 exports.Context = Context;
+
+
+/***/ }),
+
+/***/ "./src/shared/workspace.ts":
+/*!*********************************!*\
+  !*** ./src/shared/workspace.ts ***!
+  \*********************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WorkspaceContext = void 0;
+const events_1 = __webpack_require__(/*! ./events */ "./src/shared/events.ts");
+class WorkspaceContext {
+    // TODO: Move things from Sdks to this class that aren't related to the SDKs.
+    constructor(sdks, config, hasAnyFlutterMobileProjects, hasAnyWebProjects, hasAnyStandardDartProjects) {
+        this.sdks = sdks;
+        this.config = config;
+        this.hasAnyFlutterMobileProjects = hasAnyFlutterMobileProjects;
+        this.hasAnyWebProjects = hasAnyWebProjects;
+        this.hasAnyStandardDartProjects = hasAnyStandardDartProjects;
+        this.events = new WorkspaceEvents();
+        this.workspaceTypeDescription = this.buildWorkspaceTypeDescription();
+    }
+    get hasAnyFlutterProjects() { return this.hasAnyFlutterMobileProjects; }
+    get shouldLoadFlutterExtension() { return this.hasAnyFlutterProjects; }
+    /// Used only for display (for ex stats), not behaviour.
+    buildWorkspaceTypeDescription() {
+        const types = [];
+        // Don't re-order these, else stats won't easily combine as we could have
+        // Dart, Flutter and also Flutter, Dart.
+        if (this.hasAnyStandardDartProjects)
+            types.push("Dart");
+        if (this.hasAnyFlutterMobileProjects)
+            types.push("Flutter");
+        // If we didn't detect any projects, record as unknown, but include info
+        // on the type of SDK we had found.
+        if (types.length === 0) {
+            if (this.sdks && this.sdks.dartSdkIsFromFlutter)
+                types.push("Unknown (Flutter SDK)");
+            else if (this.sdks && this.sdks.dart)
+                types.push("Unknown (Dart SDK)");
+            else
+                types.push("Unknown (No SDK)");
+        }
+        return types.join(", ");
+    }
+    dispose() {
+        this.events.dispose();
+    }
+}
+exports.WorkspaceContext = WorkspaceContext;
+class WorkspaceEvents {
+    constructor() {
+        this.onPackageMapChange = new events_1.EventEmitter();
+    }
+    dispose() {
+        this.onPackageMapChange.dispose();
+    }
+}
 
 
 /***/ }),
@@ -23186,6 +23953,17 @@ module.exports = require("events");;
 
 "use strict";
 module.exports = require("fs");;
+
+/***/ }),
+
+/***/ "https":
+/*!************************!*\
+  !*** external "https" ***!
+  \************************/
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("https");;
 
 /***/ }),
 

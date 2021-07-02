@@ -1,13 +1,16 @@
 import * as vs from "vscode";
-import { IAmDisposable, Logger, Sdks } from "../shared/interfaces";
-import { EmittingLogger, logToConsole, RingLog } from "../shared/logging";
+import { dartPlatformName, flutterExtensionIdentifier, HAS_LAST_DEBUG_CONFIG, HAS_LAST_TEST_DEBUG_CONFIG, isWin, IS_LSP_CONTEXT, IS_RUNNING_LOCALLY_CONTEXT, platformDisplayName, PUB_OUTDATED_SUPPORTED_CONTEXT } from "../shared/constants";
+import { LogCategory } from "../shared/enums";
+import { DartWorkspaceContext, FlutterSdks, FlutterWorkspaceContext, IAmDisposable, Logger, Sdks, WritableWorkspaceConfig } from "../shared/interfaces";
+import { captureLogs, EmittingLogger, logToConsole, RingLog } from "../shared/logging";
 import { internalApiSymbol } from "../shared/symbols";
 import { disposeAll } from "../shared/utils";
 import { fsPath } from "../shared/utils/fs";
+import { extensionVersion, isDevExtension } from "../shared/vscode/extension_utils";
 import { InternalExtensionApi } from "../shared/vscode/interfaces";
-import { HetuUriHandler } from "../shared/vscode/uri_handlers/uri_handler";
-import { getDartWorkspaceFolders, warnIfPathCaseMismatch } from "../shared/vscode/utils";
+import { envUtils, getDartWorkspaceFolders, warnIfPathCaseMismatch } from "../shared/vscode/utils";
 import { Context } from "../shared/vscode/workspace";
+import { WorkspaceContext } from "../shared/workspace";
 import { LspAnalyzer } from "./analysis/analyzer_lsp";
 import { getOutputChannel } from "./commands/channels";
 import { EditCommands } from "./commands/edit";
@@ -17,7 +20,7 @@ import { LspAnalyzerStatusReporter } from "./lsp/analyzer_status_reporter";
 import { LspGoToSuperCommand } from "./lsp/go_to_super";
 import { SdkUtils } from "./sdk/utils";
 import * as util from "./utils";
-import { getLogHeader } from "./utils/log";
+import { addToLogHeader, clearLogHeader, getExtensionLogPath, getLogHeader } from "./utils/log";
 import { safeToolSpawn } from "./utils/processes";
 
 export const HETU_MODE = { language: "hetu", scheme: "file" };
@@ -27,8 +30,8 @@ export const SERVICE_EXTENSION_CONTEXT_PREFIX = "hetu-script:serviceExtension.";
 export const SERVICE_CONTEXT_PREFIX = "hetu-script:service.";
 
 let lspAnalyzer: LspAnalyzer;
-let analysisRoots: string[] = [];
 
+let showTodos: boolean | undefined;
 let previousSettings: string;
 
 const loggers: IAmDisposable[] = [];
@@ -40,9 +43,9 @@ const logger = new EmittingLogger();
 export const ringLog: RingLog = new RingLog(200);
 
 export async function activate(context: vs.ExtensionContext, isRestart: boolean = false) {
-	// Ring logger is only set up once and presist over silent restarts.
-	if (!ringLogger)
-		ringLogger = logger.onLog((message) => ringLog.log(message.toLine(500)));
+  // Ring logger is only set up once and presist over silent restarts.
+  if (!ringLogger)
+    ringLogger = logger.onLog((message) => ringLog.log(message.toLine(500)));
 
   context.subscriptions.push(logToConsole(logger));
 
@@ -60,9 +63,21 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
 
   const sdkUtils = new SdkUtils(logger);
   const workspaceContextUnverified = await sdkUtils.scanWorkspace();
+  util.logTime("initWorkspace");
 
+  // Set up log files.
+  setupLog(config.analyzerLogFile, LogCategory.Analyzer);
 
-  lspAnalyzer = new LspAnalyzer(logger);
+  if (!workspaceContextUnverified.sdks.dart || (workspaceContextUnverified.hasAnyFlutterProjects && !workspaceContextUnverified.sdks.flutter)) {
+    // Don't set anything else up; we can't work like this!
+    return sdkUtils.handleMissingSdks(context, workspaceContextUnverified);
+  }
+
+  const workspaceContext = workspaceContextUnverified as DartWorkspaceContext;
+  const sdks = workspaceContext.sdks;
+  const writableConfig = workspaceContext.config as WritableWorkspaceConfig;
+
+  lspAnalyzer = new LspAnalyzer(logger, sdks, workspaceContext);
   const lspClient = lspAnalyzer.client;
   context.subscriptions.push(lspAnalyzer);
 
@@ -73,10 +88,7 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   new LspAnalyzerStatusReporter(lspAnalyzer);
 
   // Handle config changes so we can reanalyze if necessary.
-  context.subscriptions.push(vs.workspace.onDidChangeConfiguration(() => handleConfigurationChange()));
-
-  // Register URI handler.
-  context.subscriptions.push(vs.window.registerUriHandler(new HetuUriHandler()));
+  context.subscriptions.push(vs.workspace.onDidChangeConfiguration(() => handleConfigurationChange(sdks)));
 
   // TODO: LSP equivs of the others...
   // Refactors
@@ -97,33 +109,69 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
 
   // Handle changes to the workspace.
   // Set the roots, handling project changes that might affect SDKs.
-  context.subscriptions.push(vs.workspace.onDidChangeWorkspaceFolders(async (f) => {
-    recalculateAnalysisRoots();
-  }));
-
+  // context.subscriptions.push(vs.workspace.onDidChangeWorkspaceFolders(async (f) => {
+  //   recalculateAnalysisRoots();
+  // }));
 
   return {
     [internalApiSymbol]: {
       analyzer: lspAnalyzer,
-      logger,
       context: extContext,
       currentAnalysis: () => lspAnalyzer.onCurrentAnalysisComplete,
+      envUtils,
       fileTracker: lspAnalyzer.fileTracker,
       getLogHeader,
       getOutputChannel,
       initialAnalysis: lspAnalyzer.onInitialAnalysis,
+      logger,
       nextAnalysis: () => lspAnalyzer.onNextAnalysisComplete,
       safeToolSpawn,
+      workspaceContext,
     } as InternalExtensionApi,
   };
 }
 
-function recalculateAnalysisRoots() {
-  const workspaceFolders = getDartWorkspaceFolders();
-  analysisRoots = workspaceFolders.map((w) => fsPath(w.uri));
+function setupLog(logFile: string | undefined, category: LogCategory) {
+  if (logFile)
+    loggers.push(captureLogs(logger, logFile, getLogHeader(), config.maxLogLineLength, [category]));
 }
 
-function handleConfigurationChange() {
+function buildLogHeaders(logger?: Logger, workspaceContext?: WorkspaceContext) {
+  clearLogHeader();
+  addToLogHeader(() => `!! PLEASE REVIEW THIS LOG FOR SENSITIVE INFORMATION BEFORE SHARING !!`);
+  addToLogHeader(() => ``);
+  addToLogHeader(() => `Dart Code extension: ${extensionVersion}`);
+  addToLogHeader(() => {
+    const ext = vs.extensions.getExtension(flutterExtensionIdentifier)!;
+    return `Flutter extension: ${ext.packageJSON.version} (${ext.isActive ? "" : "not "}activated)`;
+  });
+  addToLogHeader(() => ``);
+  addToLogHeader(() => `App: ${vs.env.appName}`);
+  addToLogHeader(() => `Version: ${vs.version}`);
+  addToLogHeader(() => `Platform: ${platformDisplayName}`);
+  if (workspaceContext) {
+    addToLogHeader(() => ``);
+    addToLogHeader(() => `Workspace type: ${workspaceContext.workspaceTypeDescription}`);
+    addToLogHeader(() => `Analyzer type: ${workspaceContext.config.useLsp ? "LSP" : "DAS"}`);
+    addToLogHeader(() => `Multi-root?: ${vs.workspace.workspaceFolders && vs.workspace.workspaceFolders.length > 1}`);
+    const sdks = workspaceContext.sdks;
+    addToLogHeader(() => ``);
+    addToLogHeader(() => `Dart SDK:\n    Loc: ${sdks.dart}\n    Ver: ${sdks.dartVersion}`);
+    addToLogHeader(() => `Flutter SDK:\n    Loc: ${sdks.flutter}\n    Ver: ${sdks.flutterVersion}`);
+  }
+  addToLogHeader(() => ``);
+  addToLogHeader(() => `HTTP_PROXY: ${process.env.HTTP_PROXY}`);
+  addToLogHeader(() => `NO_PROXY: ${process.env.NO_PROXY}`);
+
+  // Any time the log headers are rebuilt, we should re-log them.
+  logger?.info(getLogHeader());
+}
+
+function handleConfigurationChange(sdks: Sdks) {
+  // TODOs
+  const newShowTodoSetting = config.showTodos;
+  const todoSettingChanged = showTodos !== newShowTodoSetting;
+  showTodos = newShowTodoSetting;
 
   // SDK
   const newSettings = getSettingsThatRequireRestart();
@@ -158,4 +206,8 @@ export async function deactivate(isRestart: boolean = false): Promise<void> {
   if (!isRestart) {
     logger.dispose();
   }
+}
+
+function setCommandVisiblity(enable: boolean, workspaceContext?: WorkspaceContext) {
+  vs.commands.executeCommand("setContext", PROJECT_LOADED, enable);
 }
