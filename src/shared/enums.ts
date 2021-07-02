@@ -51,9 +51,16 @@ export enum VersionStatus {
 
 export enum LogCategory {
 	General,
+	CI,
 	CommandProcesses,
+	DevTools,
 	Analyzer,
+	PubTest,
+	FlutterDaemon,
+	FlutterRun,
+	FlutterTest,
 	VmService,
+	WebDaemon,
 }
 
 export enum LogSeverity {

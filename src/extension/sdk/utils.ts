@@ -28,35 +28,18 @@ export class SdkUtils {
 		// in a Flutter project (eg. we ran Flutter Doctor without the extension activated) then
 		// this code will not be run as the extension will activate normally, and then the command-handling
 		// code for each command will detect the missing Flutter SDK and respond appropriately.
-		context.subscriptions.push(commands.registerCommand("flutter.createProject", () => {
-			this.showRelevantActivationFailureMessage(analytics, workspaceContext, true, "flutter.createProject");
-		}));
-		context.subscriptions.push(commands.registerCommand("dart.createProject", () => {
-			this.showRelevantActivationFailureMessage(analytics, workspaceContext, false, "dart.createProject");
-		}));
-		context.subscriptions.push(commands.registerCommand("_dart.flutter.createSampleProject", () => {
-			this.showRelevantActivationFailureMessage(analytics, workspaceContext, true, "_dart.flutter.createSampleProject");
-		}));
-		context.subscriptions.push(commands.registerCommand("flutter.doctor", () => {
-			this.showRelevantActivationFailureMessage(analytics, workspaceContext, true, "flutter.doctor");
-		}));
-		context.subscriptions.push(commands.registerCommand("flutter.upgrade", () => {
-			this.showRelevantActivationFailureMessage(analytics, workspaceContext, true, "flutter.upgrade");
-		}));
-		// Wait a while before showing the error to allow the code above to have run if it will.
-		setTimeout(() => {
-			// Only show the "startup" message if we didn't already show another message as
-			// a result of one of the above commands beinv invoked.
-			if (!this.hasShownActivationFailure) {
-				if (workspaceContext.hasAnyFlutterProjects) {
-					this.showRelevantActivationFailureMessage(analytics, workspaceContext, true);
-				} else if (workspaceContext.hasAnyStandardDartProjects) {
-					this.showRelevantActivationFailureMessage(analytics, workspaceContext, false);
-				} else {
-					this.logger.error("No Dart or Flutter SDK was found. Suppressing prompt because it doesn't appear that a Dart/Flutter project is open.");
-				}
+
+		// Only show the "startup" message if we didn't already show another message as
+		// a result of one of the above commands beinv invoked.
+		if (!this.hasShownActivationFailure) {
+			if (workspaceContext.hasAnyFlutterProjects) {
+				this.showRelevantActivationFailureMessage(analytics, workspaceContext, true);
+			} else if (workspaceContext.hasAnyStandardDartProjects) {
+				this.showRelevantActivationFailureMessage(analytics, workspaceContext, false);
+			} else {
+				this.logger.error("No Dart or Flutter SDK was found. Suppressing prompt because it doesn't appear that a Dart/Flutter project is open.");
 			}
-		}, 500);
+		}
 		return;
 	}
 
@@ -398,14 +381,6 @@ export function referencesFlutterSdk(folder?: string): boolean {
 	return false;
 }
 
-export function referencesBuildRunner(folder?: string): boolean {
-	if (folder && hasPubspec(folder)) {
-		const regex = new RegExp("build_runner\\s*:", "i");
-		return regex.test(fs.readFileSync(path.join(folder, "pubspec.yaml")).toString());
-	}
-	return false;
-}
-
 function extractFlutterSdkPathFromPackagesFile(projectFolder: string): string | undefined {
 	if (!fs.existsSync(projectFolder))
 		return undefined;
@@ -448,37 +423,6 @@ function extractFlutterSdkPathFromPackagesFile(projectFolder: string): string | 
 
 	return packagePath;
 }
-
-async function findFuchsiaRoot(logger: Logger, folder: string): Promise<string | undefined> {
-	return findRootContaining(folder, ".jiri_root");
-}
-
-async function findBazelWorkspaceRoot(logger: Logger, folder: string): Promise<string | undefined> {
-	return findRootContaining(folder, "WORKSPACE", true);
-}
-
-async function findGitRoot(logger: Logger, folder: string): Promise<string | undefined> {
-	return findRootContaining(folder, ".git");
-}
-
-async function findFlutterSnapSdkRoot(logger: Logger, folder: string): Promise<string | undefined> {
-	if (isLinux && fs.existsSync(flutterSnapScript)) {
-		logger.info(`Found Flutter snap script`);
-		const snapSdkRoot = path.join(os.homedir(), "/snap/flutter/common/flutter");
-
-		if (!fs.existsSync(snapSdkRoot + "/.git")) {
-			logger.info(`Flutter snap is not initialized, showing prompt`);
-			await initializeFlutterSdk(logger, flutterSnapScript, initializeSnapPrompt);
-		}
-
-		if (fs.existsSync(snapSdkRoot + "/.git")) {
-			logger.info(`Returning ${snapSdkRoot} as Flutter snap SDK root`);
-			return snapSdkRoot;
-		}
-	}
-	return undefined;
-}
-
 
 function findRootContaining(folder: string, childName: string, expectFile = false): string | undefined {
 	if (folder) {

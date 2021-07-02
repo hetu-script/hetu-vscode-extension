@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { versionIsAtLeast } from "./utils";
 
 export const dartCodeExtensionIdentifier = "Dart-Code.dart-code";
 export const flutterExtensionIdentifier = "Dart-Code.flutter";
@@ -17,11 +18,21 @@ export const platformEol = isWin ? "\r\n" : "\n";
 
 export const androidStudioExecutableNames = isWin ? ["studio64.exe"] : ["studio.sh", "studio"];
 export const executableNames = {
-  hetu: isWin ? "hetu.exe" : "hetu",
+	dart: isWin ? "dart.exe" : "dart",
+	dartdoc: isWin ? "dartdoc.bat" : "dartdoc",
+	flutter: isWin ? "flutter.bat" : "flutter",
+	pub: isWin ? "pub.bat" : "pub",
 };
 export const getExecutableName = (cmd: string) => (executableNames as { [key: string]: string | undefined })[cmd] ?? cmd;
-export const hetuVMPath = "bin/" + executableNames.hetu;
-export const analyzerSnapshotPath = "bin/analysis_server.dart.snapshot";
+export const dartVMPath = "bin/" + executableNames.dart;
+export const dartDocPath = "bin/" + executableNames.dartdoc;
+export const pubPath = "bin/" + executableNames.pub;
+export const flutterPath = "bin/" + executableNames.flutter;
+export const pubSnapshotPath = "bin/snapshots/pub.dart.snapshot";
+export const analyzerSnapshotPath = "bin/snapshots/analysis_server.dart.snapshot";
+export const androidStudioPaths = androidStudioExecutableNames.map((s) => "bin/" + s);
+export const DART_DOWNLOAD_URL = "https://dart.dev/get-dart";
+export const FLUTTER_DOWNLOAD_URL = "https://flutter.dev/setup/";
 
 export const IS_LSP_CONTEXT = "dart-code:isLsp";
 
@@ -69,9 +80,10 @@ export const takeSurveyAction = "Take Survey";
 export const skipThisSurveyAction = "Skip This Survey";
 
 export const modifyingFilesOutsideWorkspaceInfoUrl = "https://dartcode.org/docs/modifying-files-outside-workspace/";
-
-export const initializeSnapPrompt = "The Flutter snap is installed but not initialized. Would you like to initialize it now?";
 export const initializingFlutterMessage = "Initializing Flutter. This may take a few minutes.";
+
+export const snapBinaryPath = "/usr/bin/snap";
+export const snapFlutterBinaryPath = "/snap/bin/flutter";
 
 // Minutes.
 export const fiveMinutesInMs = 1000 * 60 * 5;
@@ -122,62 +134,64 @@ export const reactivateDevToolsAction = "Reactivate DevTools";
 export const vmServiceListeningBannerPattern: RegExp = new RegExp("Observatory (?:listening on|.* is available at:) (http:.+)");
 export const vmServiceHttpLinkPattern: RegExp = new RegExp("(http://[\\d\\.:]+/)");
 
-export const runFlutterCreateDotPrompt = (platformType: string) => `You must run 'flutter create .' to create the files required to use the ${platformType} platform for this project.`;
-export const runFlutterCreateDotAction = "Run 'flutter create .'";
+export const runFlutterCreatePrompt = (platformType: string) => `Run 'flutter create --platforms ${platformType} .' to enable support for this platform?`;
 export const cancelAction = "Cancel";
 
 export const validMethodNameRegex = new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$");
 export const validClassNameRegex = validMethodNameRegex;
 
 export const dartRecommendedConfig = {
-  // Automatically format code on save and during typing of certain characters
-  // (like `;` and `}`).
-  "editor.formatOnSave": true,
-  "editor.formatOnType": true,
+	// Automatically format code on save and during typing of certain characters
+	// (like `;` and `}`).
+	"editor.formatOnSave": true,
+	"editor.formatOnType": true,
 
-  // Draw a guide line at 80 characters, where Dart's formatting will wrap code.
-  "editor.rulers": [80],
+	// Draw a guide line at 80 characters, where Dart's formatting will wrap code.
+	"editor.rulers": [80],
 
-  // Disables built-in highlighting of words that match your selection. Without
-  // this, all instances of the selected text will be highlighted, interfering
-  // with Dart's ability to highlight only exact references to the selected variable.
-  "editor.selectionHighlight": false,
+	// Disables built-in highlighting of words that match your selection. Without
+	// this, all instances of the selected text will be highlighted, interfering
+	// with Dart's ability to highlight only exact references to the selected variable.
+	"editor.selectionHighlight": false,
 
-  // By default, VS Code prevents code completion from popping open when in
-  // "snippet mode" (editing placeholders in inserted code). Setting this option
-  // to `false` stops that and allows completion to open as normal, as if you
-  // weren't in a snippet placeholder.
-  "editor.suggest.snippetsPreventQuickSuggestions": false,
+	// By default, VS Code prevents code completion from popping open when in
+	// "snippet mode" (editing placeholders in inserted code). Setting this option
+	// to `false` stops that and allows completion to open as normal, as if you
+	// weren't in a snippet placeholder.
+	"editor.suggest.snippetsPreventQuickSuggestions": false,
 
-  // By default, VS Code will pre-select the most recently used item from code
-  // completion. This is usually not the most relevant item.
-  //
-  // "first" will always select top item
-  // "recentlyUsedByPrefix" will filter the recently used items based on the
-  //     text immediately preceeding where completion was invoked.
-  "editor.suggestSelection": "first",
+	// By default, VS Code will pre-select the most recently used item from code
+	// completion. This is usually not the most relevant item.
+	//
+	// "first" will always select top item
+	// "recentlyUsedByPrefix" will filter the recently used items based on the
+	//     text immediately preceeding where completion was invoked.
+	"editor.suggestSelection": "first",
 
-  // Allows pressing <TAB> to complete snippets such as `for` even when the
-  // completion list is not visible.
-  "editor.tabCompletion": "onlySnippets",
+	// Allows pressing <TAB> to complete snippets such as `for` even when the
+	// completion list is not visible.
+	"editor.tabCompletion": "onlySnippets",
 
-  // By default, VS Code will popualte code completion with words found in the
-  // current file when a language service does not provide its own completions.
-  // This results in code completion suggesting words when editing comments and
-  // strings. This setting will prevent that.
-  "editor.wordBasedSuggestions": false,
+	// By default, VS Code will popualte code completion with words found in the
+	// current file when a language service does not provide its own completions.
+	// This results in code completion suggesting words when editing comments and
+	// strings. This setting will prevent that.
+	"editor.wordBasedSuggestions": false,
 };
 
 export const defaultLaunchJson = JSON.stringify(
-  {
-    "configurations": [
-      {
-        "name": "Dart & Flutter",
-        "request": "launch",
-        "type": "dart",
-      },
-    ],
-    "version": "0.2.0",
-  },
-  undefined, "\t"
+	{
+		"configurations": [
+			{
+				"name": "Dart & Flutter",
+				"request": "launch",
+				"type": "dart",
+			},
+		],
+		"version": "0.2.0",
+	},
+	undefined, "\t"
 );
+
+// This indicates that a version is the latest possible.
+export const MAX_VERSION = "999.999.999";

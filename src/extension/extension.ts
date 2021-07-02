@@ -20,7 +20,7 @@ import * as util from "./utils";
 import { getLogHeader } from "./utils/log";
 import { safeToolSpawn } from "./utils/processes";
 
-const HETU_MODE = { language: "hetu", scheme: "file" };
+export const HETU_MODE = { language: "hetu", scheme: "file" };
 
 const PROJECT_LOADED = "hetu-script:anyProjectLoaded";
 export const SERVICE_EXTENSION_CONTEXT_PREFIX = "hetu-script:serviceExtension.";
@@ -32,9 +32,17 @@ let analysisRoots: string[] = [];
 let previousSettings: string;
 
 const loggers: IAmDisposable[] = [];
+let ringLogger: IAmDisposable | undefined;
 const logger = new EmittingLogger();
 
+// Keep a running in-memory buffer of last 200 log events we can give to the
+// user when something crashed even if they don't have disk-logging enabled.
+export const ringLog: RingLog = new RingLog(200);
+
 export async function activate(context: vs.ExtensionContext, isRestart: boolean = false) {
+	// Ring logger is only set up once and presist over silent restarts.
+	if (!ringLogger)
+		ringLogger = logger.onLog((message) => ringLog.log(message.toLine(500)));
 
   context.subscriptions.push(logToConsole(logger));
 

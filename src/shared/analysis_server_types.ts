@@ -5,7 +5,7 @@
 /**
  * Return the version number of the analysis server.
  */
-export interface ServerGetVersionResponse {
+ export interface ServerGetVersionResponse {
 	/**
 	 * The version number of the analysis server.
 	 */

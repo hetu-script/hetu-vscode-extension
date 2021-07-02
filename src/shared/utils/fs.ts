@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { FLUTTER_CREATE_PROJECT_TRIGGER_FILE, isWin } from "../constants";
 import { Logger } from "../interfaces";
@@ -10,15 +11,24 @@ export function fsPath(uri: { fsPath: string } | string) {
 	return forceWindowsDriveLetterToUppercase(typeof uri === "string" ? uri : uri.fsPath);
 }
 
-export function forceWindowsDriveLetterToUppercase(p: string): string {
+export function forceWindowsDriveLetterToUppercase<T extends string | undefined>(p: T): string | (undefined extends T ? undefined : never) {
+	if (typeof p !== "string")
+		return undefined as (undefined extends T ? undefined : never);
+
 	if (p && isWin && path.isAbsolute(p) && p.startsWith(p.charAt(0).toLowerCase()))
-		p = p.substr(0, 1).toUpperCase() + p.substr(1);
+		return p.substr(0, 1).toUpperCase() + p.substr(1);
+
 	return p;
 }
 
 export function isWithinPath(file: string, folder: string) {
 	const relative = path.relative(folder, file);
 	return !!relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+export function isWithinPathOrEqual(file: string, folder: string) {
+	const relative = path.relative(folder, file);
+	return !relative || isWithinPath(file, folder);
 }
 
 export function isEqualOrWithinPath(file: string, folder: string) {
@@ -82,6 +92,16 @@ async function fileExists(p: string): Promise<boolean> {
 	}
 }
 
+export function resolveTildePaths<T extends string | undefined>(p: T): string | (undefined extends T ? undefined : never) {
+	if (typeof p !== "string")
+		return undefined as (undefined extends T ? undefined : never);
+
+	if (p.startsWith("~/"))
+		return path.join(os.homedir(), p.substr(2));
+
+	return p;
+}
+
 // Walks a few levels down and returns all folders that look like project
 // folders, such as:
 // - have a pubspec.yaml
@@ -111,11 +131,10 @@ export async function findProjectFolders(logger: Logger, roots: string[], exclud
 		: projectFolders;
 }
 
-export function getSdkVersion(logger: Logger, { sdkRoot, versionFile }: { sdkRoot?: string, versionFile?: string }): string | undefined {
-	if (!sdkRoot && !versionFile)
+export function getSdkVersion(logger: Logger, { sdkRoot }: { sdkRoot?: string }): string | undefined {
+	if (!sdkRoot)
 		return undefined;
-	if (!versionFile)
-		versionFile = path.join(sdkRoot!, "version");
+	const versionFile = path.join(sdkRoot, "version");
 	if (!fs.existsSync(versionFile))
 		return undefined;
 	try {
