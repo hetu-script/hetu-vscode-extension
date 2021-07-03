@@ -5,7 +5,7 @@ import { ExecuteCommandSignature, HandleWorkDoneProgressSignature, LanguageClien
 import { LanguageClient, StreamInfo } from "vscode-languageclient/node";
 import { AnalyzerStatusNotification, CompleteStatementRequest, DiagnosticServerRequest, ReanalyzeRequest, SuperRequest } from "../../shared/analysis/lsp/custom_protocol";
 import { Analyzer } from "../../shared/analyzer";
-import { dartVMPath, validClassNameRegex, validMethodNameRegex } from "../../shared/constants";
+import { hetuLSPPath, dartVMPath, validClassNameRegex, validMethodNameRegex } from "../../shared/constants";
 import { LogCategory } from "../../shared/enums";
 import { DartSdks, Logger } from "../../shared/interfaces";
 import { CategoryLogger } from "../../shared/logging";
@@ -172,10 +172,10 @@ function spawnServer(logger: Logger, sdks: DartSdks): Promise<StreamInfo> {
   // from paths etc) and provide it's process.
   const vmPath = path.join(sdks.dart, dartVMPath);
   // const args = getAnalyzerArgs(logger, sdks);
-  const hetuLangServerPath = path.join(__dirname, 'bin/htlsp.dill');
-  const args = ['compile', 'kernel', hetuLangServerPath];
+  const hetuLangServerPath = path.join(__dirname, hetuLSPPath);
+  const args = ['run', hetuLangServerPath];
 
-  logger.info(`Executing command: ${vmPath} ${JSON.stringify(args)}`);
+  logger.info(`Executing command: [${vmPath} run ${hetuLangServerPath}]`);
   const process = safeToolSpawn(undefined, vmPath, args);
   logger.info(`    PID: ${process.pid}`);
 

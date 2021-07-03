@@ -4155,9 +4155,9 @@ function spawnServer(logger, sdks) {
     // from paths etc) and provide it's process.
     const vmPath = path.join(sdks.dart, constants_1.dartVMPath);
     // const args = getAnalyzerArgs(logger, sdks);
-    const hetuLangServerPath = path.join(__dirname, 'bin/htlsp.dill');
-    const args = ['compile', 'kernel', hetuLangServerPath];
-    logger.info(`Executing command: ${vmPath} ${JSON.stringify(args)}`);
+    const hetuLangServerPath = path.join(__dirname, constants_1.hetuLSPPath);
+    const args = ['run', hetuLangServerPath];
+    logger.info(`Executing command: [${vmPath} run ${hetuLangServerPath}]`);
     const process = processes_1.safeToolSpawn(undefined, vmPath, args);
     logger.info(`    PID: ${process.pid}`);
     const reader = process.stdout.pipe(new LoggingTransform(logger, "<=="));
@@ -5711,10 +5711,11 @@ exports.Analyzer = Analyzer;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.alwaysOpenAction = exports.openDevToolsAction = exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.FLUTTER_DOWNLOAD_URL = exports.DART_DOWNLOAD_URL = exports.androidStudioPaths = exports.analyzerSnapshotPath = exports.pubSnapshotPath = exports.flutterPath = exports.pubPath = exports.dartDocPath = exports.dartVMPath = exports.getExecutableName = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = void 0;
-exports.validClassNameRegex = exports.validMethodNameRegex = exports.cancelAction = exports.runFlutterCreatePrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.snapFlutterBinaryPath = exports.snapBinaryPath = exports.initializingFlutterMessage = exports.modifyingFilesOutsideWorkspaceInfoUrl = exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = void 0;
-exports.MAX_VERSION = exports.defaultLaunchJson = exports.dartRecommendedConfig = void 0;
+exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.FLUTTER_DOWNLOAD_URL = exports.DART_DOWNLOAD_URL = exports.androidStudioPaths = exports.analyzerSnapshotPath = exports.pubSnapshotPath = exports.flutterPath = exports.pubPath = exports.dartDocPath = exports.dartVMPath = exports.getExecutableName = exports.hetuLSPPath = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = exports.hetuscriptExtensionIdentifier = void 0;
+exports.cancelAction = exports.runFlutterCreatePrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.snapFlutterBinaryPath = exports.snapBinaryPath = exports.initializingFlutterMessage = exports.modifyingFilesOutsideWorkspaceInfoUrl = exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = exports.alwaysOpenAction = exports.openDevToolsAction = void 0;
+exports.MAX_VERSION = exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.validClassNameRegex = exports.validMethodNameRegex = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
+exports.hetuscriptExtensionIdentifier = "hetu-script.hetuscript";
 exports.dartCodeExtensionIdentifier = "Dart-Code.dart-code";
 exports.flutterExtensionIdentifier = "Dart-Code.flutter";
 exports.debugAdapterPath = "out/dist/debug.js";
@@ -5735,6 +5736,7 @@ exports.executableNames = {
     flutter: exports.isWin ? "flutter.bat" : "flutter",
     pub: exports.isWin ? "pub.bat" : "pub",
 };
+exports.hetuLSPPath = "bin/ht_lsp.dill";
 const getExecutableName = (cmd) => { var _a; return (_a = exports.executableNames[cmd]) !== null && _a !== void 0 ? _a : cmd; };
 exports.getExecutableName = getExecutableName;
 exports.dartVMPath = "bin/" + exports.executableNames.dart;
@@ -6931,12 +6933,12 @@ exports.waitFor = waitFor;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.checkHasFlutterExtension = exports.readJson = exports.docsIconPathFormat = exports.hasFlutterExtension = exports.isDevExtension = exports.vsCodeVersionConstraint = exports.extensionVersion = exports.extensionPath = void 0;
+exports.checkHasFlutterExtension = exports.checkHasDartExtension = exports.readJson = exports.docsIconPathFormat = exports.hasFlutterExtension = exports.isDevExtension = exports.vsCodeVersionConstraint = exports.extensionVersion = exports.extensionPath = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 const path = __webpack_require__(/*! path */ "path");
 const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
 const constants_1 = __webpack_require__(/*! ../constants */ "./src/shared/constants.ts");
-exports.extensionPath = vscode_1.extensions.getExtension(constants_1.dartCodeExtensionIdentifier).extensionPath;
+exports.extensionPath = getExtensionPath();
 exports.extensionVersion = getExtensionVersion();
 exports.vsCodeVersionConstraint = getVsCodeVersionConstraint();
 exports.isDevExtension = checkIsDevExtension();
@@ -6946,6 +6948,10 @@ function readJson(file) {
     return JSON.parse(fs.readFileSync(file).toString());
 }
 exports.readJson = readJson;
+function getExtensionPath() {
+    const ext = vscode_1.extensions.getExtension(constants_1.hetuscriptExtensionIdentifier);
+    return ext.extensionPath;
+}
 function getExtensionVersion() {
     const packageJson = readJson(path.join(exports.extensionPath, "package.json"));
     return packageJson.version;
@@ -6957,6 +6963,10 @@ function getVsCodeVersionConstraint() {
 function checkIsDevExtension() {
     return exports.extensionVersion.endsWith("-dev");
 }
+function checkHasDartExtension() {
+    return vscode_1.extensions.getExtension(constants_1.dartCodeExtensionIdentifier) !== undefined;
+}
+exports.checkHasDartExtension = checkHasDartExtension;
 function checkHasFlutterExtension() {
     return vscode_1.extensions.getExtension(constants_1.flutterExtensionIdentifier) !== undefined;
 }

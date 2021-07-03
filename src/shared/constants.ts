@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import { versionIsAtLeast } from "./utils";
 
+export const hetuscriptExtensionIdentifier = "hetu-script.hetuscript";
 export const dartCodeExtensionIdentifier = "Dart-Code.dart-code";
 export const flutterExtensionIdentifier = "Dart-Code.flutter";
 export const debugAdapterPath = "out/dist/debug.js";
@@ -23,6 +24,9 @@ export const executableNames = {
   flutter: isWin ? "flutter.bat" : "flutter",
   pub: isWin ? "pub.bat" : "pub",
 };
+
+export const hetuLSPPath = "bin/ht_lsp.dill";
+
 export const getExecutableName = (cmd: string) => (executableNames as { [key: string]: string | undefined })[cmd] ?? cmd;
 export const dartVMPath = "bin/" + executableNames.dart;
 export const dartDocPath = "bin/" + executableNames.dartdoc;
