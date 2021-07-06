@@ -79,8 +79,8 @@ export function isAnalyzable(file: { uri: Uri, isUntitled?: boolean, languageId?
 	if (file.isUntitled || !fsPath(file.uri) || file.uri.scheme !== "file")
 		return false;
 
-	const analyzableLanguages = ["dart", "html"];
-	const analyzableFilenames = [".analysis_options", "analysis_options.yaml", "pubspec.yaml"];
+	const analyzableLanguages = ["hetu"];
+	// const analyzableFilenames = [".analysis_options", "analysis_options.yaml", "pubspec.yaml"];
 	// We have to include dart/html extensions as this function may be called without a language ID
 	// (for example when triggered by a file system watcher).
 	const analyzableFileExtensions = ["dart", "htm", "html"].concat(config.additionalAnalyzerFileExtensions);
@@ -89,7 +89,7 @@ export function isAnalyzable(file: { uri: Uri, isUntitled?: boolean, languageId?
 	const extension = extName ? extName.substr(1) : undefined;
 
 	return (file.languageId && analyzableLanguages.indexOf(file.languageId) >= 0)
-		|| analyzableFilenames.indexOf(path.basename(fsPath(file.uri))) >= 0
+		// || analyzableFilenames.indexOf(path.basename(fsPath(file.uri))) >= 0
 		|| (extension !== undefined && analyzableFileExtensions.includes(extension));
 }
 

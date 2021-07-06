@@ -68,10 +68,10 @@ export async function activate(context: vs.ExtensionContext, isRestart: boolean 
   // Set up log files.
   setupLog(config.analyzerLogFile, LogCategory.Analyzer);
 
-  if (!workspaceContextUnverified.sdks.dart || (workspaceContextUnverified.hasAnyFlutterProjects && !workspaceContextUnverified.sdks.flutter)) {
-    // Don't set anything else up; we can't work like this!
-    return sdkUtils.handleMissingSdks(context, workspaceContextUnverified);
-  }
+  // if (!workspaceContextUnverified.sdks.dart || (workspaceContextUnverified.hasAnyFlutterProjects && !workspaceContextUnverified.sdks.flutter)) {
+  //   // Don't set anything else up; we can't work like this!
+  //   return sdkUtils.handleMissingSdks(context, workspaceContextUnverified);
+  // }
 
   const workspaceContext = workspaceContextUnverified as DartWorkspaceContext;
   const sdks = workspaceContext.sdks;

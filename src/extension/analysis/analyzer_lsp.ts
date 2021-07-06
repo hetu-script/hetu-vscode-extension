@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as stream from "stream";
-import { CancellationToken, CodeActionContext, CompletionContext, CompletionItem, CompletionItemKind, MarkdownString, MarkedString, Position, Range, TextDocument, window } from "vscode";
+import { CancellationToken, CodeActionContext, CompletionContext, CompletionItem, CompletionItemKind, MarkdownString, workspace, Position, Range, TextDocument, window } from "vscode";
 import { ExecuteCommandSignature, HandleWorkDoneProgressSignature, LanguageClientOptions, Location, Middleware, ProgressToken, ProvideCodeActionsSignature, ProvideCompletionItemsSignature, ProvideHoverSignature, ResolveCompletionItemSignature, TextDocumentPositionParams, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceEdit } from "vscode-languageclient";
 import { LanguageClient, StreamInfo } from "vscode-languageclient/node";
 import { AnalyzerStatusNotification, CompleteStatementRequest, DiagnosticServerRequest, ReanalyzeRequest, SuperRequest } from "../../shared/analysis/lsp/custom_protocol";
@@ -147,6 +147,12 @@ export class LspAnalyzer extends Analyzer {
 
 function createClient(logger: Logger, sdks: DartSdks, wsContext: WorkspaceContext, middleware: Middleware): LanguageClient {
   const clientOptions: LanguageClientOptions = {
+    // Register the server for plain text documents
+    // documentSelector: [{ scheme: 'file', language: 'plaintext' }],
+    // synchronize: {
+    //   // Notify the server about file changes to '.clientrc files contained in the workspace
+    //   fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
+    // }
     initializationOptions: {
       // 	onlyAnalyzeProjectsWithOpenFiles: true,
       closingLabels: config.closingLabels,
@@ -158,8 +164,8 @@ function createClient(logger: Logger, sdks: DartSdks, wsContext: WorkspaceContex
   };
 
   const client = new LanguageClient(
-    "hetuAnalysisLSP",
-    "Hetu Analysis Server",
+    "hetuLanguageServer",
+    "Hetu Language Server",
     () => spawnServer(logger, sdks),
     clientOptions,
   );

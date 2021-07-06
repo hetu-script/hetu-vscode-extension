@@ -28,15 +28,15 @@ export class SdkUtils {
 
     // Only show the "startup" message if we didn't already show another message as
     // a result of one of the above commands beinv invoked.
-    if (!this.hasShownActivationFailure) {
-      if (workspaceContext.hasAnyFlutterProjects) {
-        this.showRelevantActivationFailureMessage(workspaceContext, true);
-      } else if (workspaceContext.hasAnyStandardDartProjects) {
-        this.showRelevantActivationFailureMessage(workspaceContext, false);
-      } else {
-        this.logger.error("No Dart or Flutter SDK was found. Suppressing prompt because it doesn't appear that a Dart/Flutter project is open.");
-      }
-    }
+    // if (!this.hasShownActivationFailure) {
+    //   if (workspaceContext.hasAnyFlutterProjects) {
+    //     this.showRelevantActivationFailureMessage(workspaceContext, true);
+    //   } else if (workspaceContext.hasAnyStandardDartProjects) {
+    //     this.showRelevantActivationFailureMessage(workspaceContext, false);
+    //   } else {
+    //     this.logger.error("No Dart or Flutter SDK was found. Suppressing prompt because it doesn't appear that a Dart/Flutter project is open.");
+    //   }
+    // }
     return;
   }
 
@@ -136,9 +136,9 @@ export class SdkUtils {
     const normalPath = (process.env.PATH as string) || "";
     const paths = (pathOverride + path.delimiter + normalPath).split(path.delimiter).filter((p) => p);
 
-    this.logger.info("Environment PATH:");
-    for (const p of paths)
-      this.logger.info(`    ${p}`);
+    // this.logger.info("Environment PATH:");
+    // for (const p of paths)
+    //   this.logger.info(`    ${p}`);
 
     // If we are running the analyzer remotely over SSH, we only support an analyzer, since none
     // of the other SDKs will work remotely. Also, there is no need to validate the sdk path,
@@ -148,52 +148,52 @@ export class SdkUtils {
         dart: config.sdkPath,
         dartSdkIsFromFlutter: false,
         flutter: undefined,
-      } as Sdks, {}, false, false, false);
+      } as Sdks, {});//, false, false, false);
     }
 
     // TODO: This has gotten very messy and needs tidying up...
 
-    let firstFlutterMobileProject: string | undefined;
-    let hasAnyFlutterProject: boolean = false;
-    let hasAnyFlutterMobileProject: boolean = false;
-    let hasAnyWebProject: boolean = false;
-    let hasAnyStandardDartProject: boolean = false;
+    // let firstFlutterMobileProject: string | undefined;
+    // let hasAnyFlutterProject: boolean = false;
+    // let hasAnyFlutterMobileProject: boolean = false;
+    // let hasAnyWebProject: boolean = false;
+    // let hasAnyStandardDartProject: boolean = false;
 
-    const possibleProjects = await getAllProjectFolders(this.logger, getExcludedFolders);
+    // const possibleProjects = await getAllProjectFolders(this.logger, getExcludedFolders);
 
     // Scan through them all to figure out what type of projects we have.
-    for (const folder of possibleProjects) {
-      const hasPubspecFile = hasPubspec(folder);
-      const refsFlutter = hasPubspecFile && referencesFlutterSdk(folder);
-      const refsWeb = false; // hasPubspecFile && referencesWeb(folder);
-      const hasFlutterCreateProjectTriggerFile =
-        fs.existsSync(path.join(folder, FLUTTER_CREATE_PROJECT_TRIGGER_FILE));
+    // for (const folder of possibleProjects) {
+    //   const hasPubspecFile = hasPubspec(folder);
+    //   const refsFlutter = hasPubspecFile && referencesFlutterSdk(folder);
+    //   const refsWeb = false; // hasPubspecFile && referencesWeb(folder);
+    //   const hasFlutterCreateProjectTriggerFile =
+    //     fs.existsSync(path.join(folder, FLUTTER_CREATE_PROJECT_TRIGGER_FILE));
 
-      // Special case to detect the Flutter repo root, so we always consider it a Flutter project and will use the local SDK
-      const isFlutterRepo = fs.existsSync(path.join(folder, "bin/flutter")) && fs.existsSync(path.join(folder, "bin/cache/dart-sdk"));
+    //   // Special case to detect the Flutter repo root, so we always consider it a Flutter project and will use the local SDK
+    //   const isFlutterRepo = fs.existsSync(path.join(folder, "bin/flutter")) && fs.existsSync(path.join(folder, "bin/cache/dart-sdk"));
 
-      // Since we just blocked on a lot of sync FS, yield.
-      await resolvedPromise;
+    //   // Since we just blocked on a lot of sync FS, yield.
+    //   await resolvedPromise;
 
-      const isSomethingFlutter = refsFlutter || hasFlutterCreateProjectTriggerFile || isFlutterRepo;
+    //   const isSomethingFlutter = refsFlutter || hasFlutterCreateProjectTriggerFile || isFlutterRepo;
 
-      if (isSomethingFlutter) {
-        this.logger.info(`Found Flutter project at ${folder}:
-			Mobile? ${refsFlutter}
-			Web? ${refsWeb}
-			Create Trigger? ${hasFlutterCreateProjectTriggerFile}
-			Flutter Repo? ${isFlutterRepo}`);
-      }
+    //   if (isSomethingFlutter) {
+    //     this.logger.info(`Found Flutter project at ${folder}:
+		// 	Mobile? ${refsFlutter}
+		// 	Web? ${refsWeb}
+		// 	Create Trigger? ${hasFlutterCreateProjectTriggerFile}
+		// 	Flutter Repo? ${isFlutterRepo}`);
+    //   }
 
-      // Track the first Flutter Project so we can try finding the Flutter SDK from its packages file.
-      firstFlutterMobileProject = firstFlutterMobileProject || (isSomethingFlutter ? folder : undefined);
+    //   // Track the first Flutter Project so we can try finding the Flutter SDK from its packages file.
+    //   firstFlutterMobileProject = firstFlutterMobileProject || (isSomethingFlutter ? folder : undefined);
 
-      // Set some flags we'll use to construct the workspace, so we know what things we need to light up.
-      hasAnyFlutterProject = hasAnyFlutterProject || isSomethingFlutter;
-      hasAnyFlutterMobileProject = hasAnyFlutterMobileProject || refsFlutter || hasFlutterCreateProjectTriggerFile;
-      hasAnyWebProject = hasAnyWebProject || refsWeb;
-      hasAnyStandardDartProject = hasAnyStandardDartProject || (!isSomethingFlutter && hasPubspecFile);
-    }
+    //   // Set some flags we'll use to construct the workspace, so we know what things we need to light up.
+    //   hasAnyFlutterProject = hasAnyFlutterProject || isSomethingFlutter;
+    //   hasAnyFlutterMobileProject = hasAnyFlutterMobileProject || refsFlutter || hasFlutterCreateProjectTriggerFile;
+    //   hasAnyWebProject = hasAnyWebProject || refsWeb;
+    //   hasAnyStandardDartProject = hasAnyStandardDartProject || (!isSomethingFlutter && hasPubspecFile);
+    // }
 
     // Certain types of workspaces will have special config, so read them here.
     const workspaceConfig: WorkspaceConfig = {};
@@ -228,7 +228,8 @@ export class SdkUtils {
 
     const dartSdkSearchPaths = [
       isMac ? workspaceConfig?.dartSdkHomeMac : workspaceConfig?.dartSdkHomeLinux,
-      firstFlutterMobileProject && flutterSdkPath && path.join(flutterSdkPath, "bin/cache/dart-sdk"),
+      // firstFlutterMobileProject && 
+      flutterSdkPath && path.join(flutterSdkPath, "bin/cache/dart-sdk"),
       config.sdkPath,
     ].concat(paths)
       // The above array only has the Flutter SDK	in the search path if we KNOW it's a flutter
@@ -255,9 +256,9 @@ export class SdkUtils {
         flutterVersion: getSdkVersion(this.logger, { sdkRoot: flutterSdkPath, versionFile: workspaceConfig?.flutterVersionFile }),
       } as Sdks,
       workspaceConfig,
-      hasAnyFlutterMobileProject,
-      hasAnyWebProject,
-      hasAnyStandardDartProject,
+      // hasAnyFlutterMobileProject,
+      // hasAnyWebProject,
+      // hasAnyStandardDartProject,
     );
   }
 
@@ -294,9 +295,9 @@ export class SdkUtils {
     // TODO: Make the list unique, but preserve the order of the first occurrences. We currently
     // have uniq() and unique(), so also consolidate them.
 
-    this.logger.info(`    Looking for ${executableFilename} in:`);
-    for (const p of sdkPaths)
-      this.logger.info(`        ${p}`);
+    // this.logger.info(`    Looking for ${executableFilename} in:`);
+    // for (const p of sdkPaths)
+    //   this.logger.info(`        ${p}`);
 
     // Restrict only to the paths that have the executable.
     sdkPaths = sdkPaths.filter((p) => fs.existsSync(path.join(p, executableFilename)));

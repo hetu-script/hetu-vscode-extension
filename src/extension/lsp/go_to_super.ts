@@ -8,13 +8,13 @@ export class LspGoToSuperCommand implements vs.Disposable {
 	private disposables: vs.Disposable[] = [];
 
 	constructor(private readonly analyzer: LspAnalyzer) {
-		this.disposables.push(vs.commands.registerCommand("dart.goToSuper", this.goToSuper, this));
+		this.disposables.push(vs.commands.registerCommand("hetu.goToSuper", this.goToSuper, this));
 	}
 
 	private async goToSuper(): Promise<void> {
-		const editor = editors.getActiveDartEditor();
+		const editor = editors.getActiveHetuEditor();
 		if (!editor) {
-			vs.window.showWarningMessage("No active Dart editor.");
+			vs.window.showWarningMessage("No active Hetu editor.");
 			return;
 		}
 

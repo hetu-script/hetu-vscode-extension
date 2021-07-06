@@ -8,25 +8,25 @@ export class WorkspaceContext implements IAmDisposable {
   constructor(
     public readonly sdks: Sdks,
     public readonly config: WorkspaceConfig,
-    public readonly hasAnyFlutterMobileProjects: boolean,
-    public readonly hasAnyWebProjects: boolean,
-    public readonly hasAnyStandardDartProjects: boolean,
+    // public readonly hasAnyFlutterMobileProjects: boolean,
+    // public readonly hasAnyWebProjects: boolean,
+    // public readonly hasAnyStandardDartProjects: boolean,
   ) {
     this.workspaceTypeDescription = this.buildWorkspaceTypeDescription();
   }
 
-  get hasAnyFlutterProjects() { return this.hasAnyFlutterMobileProjects; }
-  get shouldLoadFlutterExtension() { return this.hasAnyFlutterProjects; }
+  // get hasAnyFlutterProjects() { return this.hasAnyFlutterMobileProjects; }
+  // get shouldLoadFlutterExtension() { return this.hasAnyFlutterProjects; }
 
   /// Used only for display (for ex stats), not behaviour.
   private buildWorkspaceTypeDescription(): string {
     const types: string[] = [];
     // Don't re-order these, else stats won't easily combine as we could have
     // Dart, Flutter and also Flutter, Dart.
-    if (this.hasAnyStandardDartProjects)
-      types.push("Dart");
-    if (this.hasAnyFlutterMobileProjects)
-      types.push("Flutter");
+    // if (this.hasAnyStandardDartProjects)
+    //   types.push("Dart");
+    // if (this.hasAnyFlutterMobileProjects)
+    //   types.push("Flutter");
 
     // If we didn't detect any projects, record as unknown, but include info
     // on the type of SDK we had found.

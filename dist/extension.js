@@ -4138,6 +4138,12 @@ class LspAnalyzer extends analyzer_1.Analyzer {
 exports.LspAnalyzer = LspAnalyzer;
 function createClient(logger, sdks, wsContext, middleware) {
     const clientOptions = {
+        // Register the server for plain text documents
+        // documentSelector: [{ scheme: 'file', language: 'plaintext' }],
+        // synchronize: {
+        //   // Notify the server about file changes to '.clientrc files contained in the workspace
+        //   fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
+        // }
         initializationOptions: {
             // 	onlyAnalyzeProjectsWithOpenFiles: true,
             closingLabels: config_1.config.closingLabels,
@@ -4147,7 +4153,7 @@ function createClient(logger, sdks, wsContext, middleware) {
         middleware,
         outputChannelName: "LSP",
     };
-    const client = new node_1.LanguageClient("hetuAnalysisLSP", "Hetu Analysis Server", () => spawnServer(logger, sdks), clientOptions);
+    const client = new node_1.LanguageClient("hetuLanguageServer", "Hetu Language Server", () => spawnServer(logger, sdks), clientOptions);
     return client;
 }
 function spawnServer(logger, sdks) {
@@ -4316,11 +4322,11 @@ const processes_1 = __webpack_require__(/*! ./utils/processes */ "./src/extensio
 class Config {
     constructor() {
         vscode_1.workspace.onDidChangeConfiguration((e) => this.reloadConfig());
-        this.config = vscode_1.workspace.getConfiguration("dart");
+        this.config = vscode_1.workspace.getConfiguration("hetu");
         processes_1.setupToolEnv(this.env);
     }
     reloadConfig() {
-        this.config = vscode_1.workspace.getConfiguration("dart");
+        this.config = vscode_1.workspace.getConfiguration("hetu");
         processes_1.setupToolEnv(this.env);
     }
     getConfig(key, defaultValue) {
@@ -4462,7 +4468,7 @@ class Config {
 class ResourceConfig {
     constructor(uri) {
         this.uri = uri;
-        this.config = vscode_1.workspace.getConfiguration("dart", this.uri);
+        this.config = vscode_1.workspace.getConfiguration("hetu", this.uri);
     }
     getConfig(key, defaultValue) {
         return utils_1.nullToUndefined(this.config.get(key, defaultValue));
@@ -4578,10 +4584,10 @@ function activate(context, isRestart = false) {
         util.logTime("initWorkspace");
         // Set up log files.
         setupLog(config_1.config.analyzerLogFile, enums_1.LogCategory.Analyzer);
-        if (!workspaceContextUnverified.sdks.dart || (workspaceContextUnverified.hasAnyFlutterProjects && !workspaceContextUnverified.sdks.flutter)) {
-            // Don't set anything else up; we can't work like this!
-            return sdkUtils.handleMissingSdks(context, workspaceContextUnverified);
-        }
+        // if (!workspaceContextUnverified.sdks.dart || (workspaceContextUnverified.hasAnyFlutterProjects && !workspaceContextUnverified.sdks.flutter)) {
+        //   // Don't set anything else up; we can't work like this!
+        //   return sdkUtils.handleMissingSdks(context, workspaceContextUnverified);
+        // }
         const workspaceContext = workspaceContextUnverified;
         const sdks = workspaceContext.sdks;
         const writableConfig = workspaceContext.config;
@@ -4839,17 +4845,15 @@ class SdkUtils {
         // code for each command will detect the missing Flutter SDK and respond appropriately.
         // Only show the "startup" message if we didn't already show another message as
         // a result of one of the above commands beinv invoked.
-        if (!this.hasShownActivationFailure) {
-            if (workspaceContext.hasAnyFlutterProjects) {
-                this.showRelevantActivationFailureMessage(workspaceContext, true);
-            }
-            else if (workspaceContext.hasAnyStandardDartProjects) {
-                this.showRelevantActivationFailureMessage(workspaceContext, false);
-            }
-            else {
-                this.logger.error("No Dart or Flutter SDK was found. Suppressing prompt because it doesn't appear that a Dart/Flutter project is open.");
-            }
-        }
+        // if (!this.hasShownActivationFailure) {
+        //   if (workspaceContext.hasAnyFlutterProjects) {
+        //     this.showRelevantActivationFailureMessage(workspaceContext, true);
+        //   } else if (workspaceContext.hasAnyStandardDartProjects) {
+        //     this.showRelevantActivationFailureMessage(workspaceContext, false);
+        //   } else {
+        //     this.logger.error("No Dart or Flutter SDK was found. Suppressing prompt because it doesn't appear that a Dart/Flutter project is open.");
+        //   }
+        // }
         return;
     }
     showRelevantActivationFailureMessage(workspaceContext, isFlutter, commandToReRun) {
@@ -4927,9 +4931,9 @@ class SdkUtils {
             const pathOverride = process.env.DART_PATH_OVERRIDE || "";
             const normalPath = process.env.PATH || "";
             const paths = (pathOverride + path.delimiter + normalPath).split(path.delimiter).filter((p) => p);
-            this.logger.info("Environment PATH:");
-            for (const p of paths)
-                this.logger.info(`    ${p}`);
+            // this.logger.info("Environment PATH:");
+            // for (const p of paths)
+            //   this.logger.info(`    ${p}`);
             // If we are running the analyzer remotely over SSH, we only support an analyzer, since none
             // of the other SDKs will work remotely. Also, there is no need to validate the sdk path,
             // since that file will exist on a remote machine.
@@ -4938,41 +4942,42 @@ class SdkUtils {
                     dart: config_1.config.sdkPath,
                     dartSdkIsFromFlutter: false,
                     flutter: undefined,
-                }, {}, false, false, false);
+                }, {}); //, false, false, false);
             }
             // TODO: This has gotten very messy and needs tidying up...
-            let firstFlutterMobileProject;
-            let hasAnyFlutterProject = false;
-            let hasAnyFlutterMobileProject = false;
-            let hasAnyWebProject = false;
-            let hasAnyStandardDartProject = false;
-            const possibleProjects = yield utils_2.getAllProjectFolders(this.logger, utils_3.getExcludedFolders);
+            // let firstFlutterMobileProject: string | undefined;
+            // let hasAnyFlutterProject: boolean = false;
+            // let hasAnyFlutterMobileProject: boolean = false;
+            // let hasAnyWebProject: boolean = false;
+            // let hasAnyStandardDartProject: boolean = false;
+            // const possibleProjects = await getAllProjectFolders(this.logger, getExcludedFolders);
             // Scan through them all to figure out what type of projects we have.
-            for (const folder of possibleProjects) {
-                const hasPubspecFile = fs_1.hasPubspec(folder);
-                const refsFlutter = hasPubspecFile && referencesFlutterSdk(folder);
-                const refsWeb = false; // hasPubspecFile && referencesWeb(folder);
-                const hasFlutterCreateProjectTriggerFile = fs.existsSync(path.join(folder, constants_1.FLUTTER_CREATE_PROJECT_TRIGGER_FILE));
-                // Special case to detect the Flutter repo root, so we always consider it a Flutter project and will use the local SDK
-                const isFlutterRepo = fs.existsSync(path.join(folder, "bin/flutter")) && fs.existsSync(path.join(folder, "bin/cache/dart-sdk"));
-                // Since we just blocked on a lot of sync FS, yield.
-                yield promises_1.resolvedPromise;
-                const isSomethingFlutter = refsFlutter || hasFlutterCreateProjectTriggerFile || isFlutterRepo;
-                if (isSomethingFlutter) {
-                    this.logger.info(`Found Flutter project at ${folder}:
-			Mobile? ${refsFlutter}
-			Web? ${refsWeb}
-			Create Trigger? ${hasFlutterCreateProjectTriggerFile}
-			Flutter Repo? ${isFlutterRepo}`);
-                }
-                // Track the first Flutter Project so we can try finding the Flutter SDK from its packages file.
-                firstFlutterMobileProject = firstFlutterMobileProject || (isSomethingFlutter ? folder : undefined);
-                // Set some flags we'll use to construct the workspace, so we know what things we need to light up.
-                hasAnyFlutterProject = hasAnyFlutterProject || isSomethingFlutter;
-                hasAnyFlutterMobileProject = hasAnyFlutterMobileProject || refsFlutter || hasFlutterCreateProjectTriggerFile;
-                hasAnyWebProject = hasAnyWebProject || refsWeb;
-                hasAnyStandardDartProject = hasAnyStandardDartProject || (!isSomethingFlutter && hasPubspecFile);
-            }
+            // for (const folder of possibleProjects) {
+            //   const hasPubspecFile = hasPubspec(folder);
+            //   const refsFlutter = hasPubspecFile && referencesFlutterSdk(folder);
+            //   const refsWeb = false; // hasPubspecFile && referencesWeb(folder);
+            //   const hasFlutterCreateProjectTriggerFile =
+            //     fs.existsSync(path.join(folder, FLUTTER_CREATE_PROJECT_TRIGGER_FILE));
+            //   // Special case to detect the Flutter repo root, so we always consider it a Flutter project and will use the local SDK
+            //   const isFlutterRepo = fs.existsSync(path.join(folder, "bin/flutter")) && fs.existsSync(path.join(folder, "bin/cache/dart-sdk"));
+            //   // Since we just blocked on a lot of sync FS, yield.
+            //   await resolvedPromise;
+            //   const isSomethingFlutter = refsFlutter || hasFlutterCreateProjectTriggerFile || isFlutterRepo;
+            //   if (isSomethingFlutter) {
+            //     this.logger.info(`Found Flutter project at ${folder}:
+            // 	Mobile? ${refsFlutter}
+            // 	Web? ${refsWeb}
+            // 	Create Trigger? ${hasFlutterCreateProjectTriggerFile}
+            // 	Flutter Repo? ${isFlutterRepo}`);
+            //   }
+            //   // Track the first Flutter Project so we can try finding the Flutter SDK from its packages file.
+            //   firstFlutterMobileProject = firstFlutterMobileProject || (isSomethingFlutter ? folder : undefined);
+            //   // Set some flags we'll use to construct the workspace, so we know what things we need to light up.
+            //   hasAnyFlutterProject = hasAnyFlutterProject || isSomethingFlutter;
+            //   hasAnyFlutterMobileProject = hasAnyFlutterMobileProject || refsFlutter || hasFlutterCreateProjectTriggerFile;
+            //   hasAnyWebProject = hasAnyWebProject || refsWeb;
+            //   hasAnyStandardDartProject = hasAnyStandardDartProject || (!isSomethingFlutter && hasPubspecFile);
+            // }
             // Certain types of workspaces will have special config, so read them here.
             const workspaceConfig = {};
             // Helper that searches for a specific folder/file up the tree and
@@ -5002,7 +5007,8 @@ class SdkUtils {
             yield promises_1.resolvedPromise;
             const dartSdkSearchPaths = [
                 constants_1.isMac ? workspaceConfig === null || workspaceConfig === void 0 ? void 0 : workspaceConfig.dartSdkHomeMac : workspaceConfig === null || workspaceConfig === void 0 ? void 0 : workspaceConfig.dartSdkHomeLinux,
-                firstFlutterMobileProject && flutterSdkPath && path.join(flutterSdkPath, "bin/cache/dart-sdk"),
+                // firstFlutterMobileProject && 
+                flutterSdkPath && path.join(flutterSdkPath, "bin/cache/dart-sdk"),
                 config_1.config.sdkPath,
             ].concat(paths)
                 // The above array only has the Flutter SDK	in the search path if we KNOW it's a flutter
@@ -5022,7 +5028,7 @@ class SdkUtils {
                 dartVersion: fs_1.getSdkVersion(this.logger, { sdkRoot: dartSdkPath }),
                 flutter: flutterSdkPath,
                 flutterVersion: fs_1.getSdkVersion(this.logger, { sdkRoot: flutterSdkPath, versionFile: workspaceConfig === null || workspaceConfig === void 0 ? void 0 : workspaceConfig.flutterVersionFile }),
-            }, workspaceConfig, hasAnyFlutterMobileProject, hasAnyWebProject, hasAnyStandardDartProject);
+            }, workspaceConfig);
         });
     }
     findDartSdk(folders) {
@@ -5049,9 +5055,9 @@ class SdkUtils {
         // Add on the executable name, as we need to do filtering based on the resolve path.
         // TODO: Make the list unique, but preserve the order of the first occurrences. We currently
         // have uniq() and unique(), so also consolidate them.
-        this.logger.info(`    Looking for ${executableFilename} in:`);
-        for (const p of sdkPaths)
-            this.logger.info(`        ${p}`);
+        // this.logger.info(`    Looking for ${executableFilename} in:`);
+        // for (const p of sdkPaths)
+        //   this.logger.info(`        ${p}`);
         // Restrict only to the paths that have the executable.
         sdkPaths = sdkPaths.filter((p) => fs.existsSync(path.join(p, executableFilename)));
         this.logger.info(`    Found at:`);
@@ -5141,8 +5147,7 @@ function findRootContaining(folder, childName, expectFile = false) {
     }
     return undefined;
 }
-const hasDartAnalysisServer = (folder) => fs.existsSync(path.join(folder, constants_1.analyzerSnapshotPath));
-exports.hasDartAnalysisServer = hasDartAnalysisServer;
+exports.hasDartAnalysisServer = (folder) => fs.existsSync(path.join(folder, constants_1.analyzerSnapshotPath));
 
 
 /***/ }),
@@ -5241,15 +5246,15 @@ exports.createFolderForFile = createFolderForFile;
 function isAnalyzable(file) {
     if (file.isUntitled || !fs_1.fsPath(file.uri) || file.uri.scheme !== "file")
         return false;
-    const analyzableLanguages = ["dart", "html"];
-    const analyzableFilenames = [".analysis_options", "analysis_options.yaml", "pubspec.yaml"];
+    const analyzableLanguages = ["hetu"];
+    // const analyzableFilenames = [".analysis_options", "analysis_options.yaml", "pubspec.yaml"];
     // We have to include dart/html extensions as this function may be called without a language ID
     // (for example when triggered by a file system watcher).
     const analyzableFileExtensions = ["dart", "htm", "html"].concat(config_1.config.additionalAnalyzerFileExtensions);
     const extName = path.extname(fs_1.fsPath(file.uri));
     const extension = extName ? extName.substr(1) : undefined;
     return (file.languageId && analyzableLanguages.indexOf(file.languageId) >= 0)
-        || analyzableFilenames.indexOf(path.basename(fs_1.fsPath(file.uri))) >= 0
+        // || analyzableFilenames.indexOf(path.basename(fsPath(file.uri))) >= 0
         || (extension !== undefined && analyzableFileExtensions.includes(extension));
 }
 exports.isAnalyzable = isAnalyzable;
@@ -5393,14 +5398,13 @@ function pad(str, length) {
         str = "0" + str;
     return str;
 }
-const logTime = (taskFinished) => {
+exports.logTime = (taskFinished) => {
     if (!shouldLogTimings)
         return;
     const end = process.hrtime.bigint();
     console.log(`${pad((end - last).toString(), 15)} ${taskFinished ? "<== " + taskFinished : ""}`);
     last = end;
 };
-exports.logTime = logTime;
 function openLogContents(logType = `txt`, logContents, tempPath) {
     if (!tempPath)
         tempPath = path.join(os.tmpdir(), `log-${fs_1.getRandomInt(0x1000, 0x10000).toString(16)}.${logType}`);
@@ -5711,9 +5715,7 @@ exports.Analyzer = Analyzer;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.FLUTTER_DOWNLOAD_URL = exports.DART_DOWNLOAD_URL = exports.androidStudioPaths = exports.analyzerSnapshotPath = exports.pubSnapshotPath = exports.flutterPath = exports.pubPath = exports.dartDocPath = exports.dartVMPath = exports.getExecutableName = exports.hetuLSPPath = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = exports.hetuscriptExtensionIdentifier = void 0;
-exports.cancelAction = exports.runFlutterCreatePrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.snapFlutterBinaryPath = exports.snapBinaryPath = exports.initializingFlutterMessage = exports.modifyingFilesOutsideWorkspaceInfoUrl = exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = exports.alwaysOpenAction = exports.openDevToolsAction = void 0;
-exports.MAX_VERSION = exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.validClassNameRegex = exports.validMethodNameRegex = void 0;
+exports.MAX_VERSION = exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.validClassNameRegex = exports.validMethodNameRegex = exports.cancelAction = exports.runFlutterCreatePrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.snapFlutterBinaryPath = exports.snapBinaryPath = exports.initializingFlutterMessage = exports.modifyingFilesOutsideWorkspaceInfoUrl = exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = exports.alwaysOpenAction = exports.openDevToolsAction = exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.FLUTTER_DOWNLOAD_URL = exports.DART_DOWNLOAD_URL = exports.androidStudioPaths = exports.analyzerSnapshotPath = exports.pubSnapshotPath = exports.flutterPath = exports.pubPath = exports.dartDocPath = exports.dartVMPath = exports.getExecutableName = exports.hetuLSPPath = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = exports.hetuscriptExtensionIdentifier = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 exports.hetuscriptExtensionIdentifier = "hetu-script.hetuscript";
 exports.dartCodeExtensionIdentifier = "Dart-Code.dart-code";
@@ -5737,8 +5739,7 @@ exports.executableNames = {
     pub: exports.isWin ? "pub.bat" : "pub",
 };
 exports.hetuLSPPath = "bin/ht_lsp.dill";
-const getExecutableName = (cmd) => { var _a; return (_a = exports.executableNames[cmd]) !== null && _a !== void 0 ? _a : cmd; };
-exports.getExecutableName = getExecutableName;
+exports.getExecutableName = (cmd) => { var _a; return (_a = exports.executableNames[cmd]) !== null && _a !== void 0 ? _a : cmd; };
 exports.dartVMPath = "bin/" + exports.executableNames.dart;
 exports.dartDocPath = "bin/" + exports.executableNames.dartdoc;
 exports.pubPath = "bin/" + exports.executableNames.pub;
@@ -5825,8 +5826,7 @@ exports.openSettingsAction = "Open Settings File";
 exports.reactivateDevToolsAction = "Reactivate DevTools";
 exports.vmServiceListeningBannerPattern = new RegExp("Observatory (?:listening on|.* is available at:) (http:.+)");
 exports.vmServiceHttpLinkPattern = new RegExp("(http://[\\d\\.:]+/)");
-const runFlutterCreatePrompt = (platformType) => `Run 'flutter create --platforms ${platformType} .' to enable support for this platform?`;
-exports.runFlutterCreatePrompt = runFlutterCreatePrompt;
+exports.runFlutterCreatePrompt = (platformType) => `Run 'flutter create --platforms ${platformType} .' to enable support for this platform?`;
 exports.cancelAction = "Cancel";
 exports.validMethodNameRegex = new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$");
 exports.validClassNameRegex = exports.validMethodNameRegex;
@@ -7217,26 +7217,23 @@ exports.WorkspaceContext = void 0;
 const events_1 = __webpack_require__(/*! ./events */ "./src/shared/events.ts");
 class WorkspaceContext {
     // TODO: Move things from Sdks to this class that aren't related to the SDKs.
-    constructor(sdks, config, hasAnyFlutterMobileProjects, hasAnyWebProjects, hasAnyStandardDartProjects) {
+    constructor(sdks, config) {
         this.sdks = sdks;
         this.config = config;
-        this.hasAnyFlutterMobileProjects = hasAnyFlutterMobileProjects;
-        this.hasAnyWebProjects = hasAnyWebProjects;
-        this.hasAnyStandardDartProjects = hasAnyStandardDartProjects;
         this.events = new WorkspaceEvents();
         this.workspaceTypeDescription = this.buildWorkspaceTypeDescription();
     }
-    get hasAnyFlutterProjects() { return this.hasAnyFlutterMobileProjects; }
-    get shouldLoadFlutterExtension() { return this.hasAnyFlutterProjects; }
+    // get hasAnyFlutterProjects() { return this.hasAnyFlutterMobileProjects; }
+    // get shouldLoadFlutterExtension() { return this.hasAnyFlutterProjects; }
     /// Used only for display (for ex stats), not behaviour.
     buildWorkspaceTypeDescription() {
         const types = [];
         // Don't re-order these, else stats won't easily combine as we could have
         // Dart, Flutter and also Flutter, Dart.
-        if (this.hasAnyStandardDartProjects)
-            types.push("Dart");
-        if (this.hasAnyFlutterMobileProjects)
-            types.push("Flutter");
+        // if (this.hasAnyStandardDartProjects)
+        //   types.push("Dart");
+        // if (this.hasAnyFlutterMobileProjects)
+        //   types.push("Flutter");
         // If we didn't detect any projects, record as unknown, but include info
         // on the type of SDK we had found.
         if (types.length === 0) {

@@ -9,32 +9,32 @@ export class StatusBarVersionTracker implements vs.Disposable {
 	private subscriptions: vs.Disposable[] = [];
 
 	constructor(workspaceContext: WorkspaceContext, isLsp: boolean) {
-		const dartIsFromFlutter = workspaceContext.sdks.dartSdkIsFromFlutter;
+		// const dartIsFromFlutter = workspaceContext.sdks.dartSdkIsFromFlutter;
 
-		// Which switcher we show is based on whether we're in a Flutter project or not.
-		const switchSdkCommand = workspaceContext.hasAnyFlutterProjects
-			? (config.flutterSdkPaths && config.flutterSdkPaths.length > 0 ? "dart.changeFlutterSdk" : undefined)
-			: (config.sdkPaths && config.sdkPaths.length > 0 ? "dart.changeSdk" : undefined);
+		// // Which switcher we show is based on whether we're in a Flutter project or not.
+		// const switchSdkCommand = workspaceContext.hasAnyFlutterProjects
+		// 	? (config.flutterSdkPaths && config.flutterSdkPaths.length > 0 ? "dart.changeFlutterSdk" : undefined)
+		// 	: (config.sdkPaths && config.sdkPaths.length > 0 ? "dart.changeSdk" : undefined);
 
-		// Render an approprite label for what we're calling this SDK.
-		const label = workspaceContext.hasAnyFlutterProjects
-			? "Flutter"
-			: (dartIsFromFlutter ? "Dart from Flutter" : "Dart");
+		// // Render an approprite label for what we're calling this SDK.
+		// const label = workspaceContext.hasAnyFlutterProjects
+		// 	? "Flutter"
+		// 	: (dartIsFromFlutter ? "Dart from Flutter" : "Dart");
 
-		let versionLabel = (workspaceContext.hasAnyFlutterProjects || dartIsFromFlutter)
-			? workspaceContext.sdks.flutterVersion
-			: workspaceContext.sdks.dartVersion;
+		// let versionLabel = (workspaceContext.hasAnyFlutterProjects || dartIsFromFlutter)
+		// 	? workspaceContext.sdks.flutterVersion
+		// 	: workspaceContext.sdks.dartVersion;
 
-		if (versionLabel === MAX_VERSION)
-			versionLabel = "latest";
+		// if (versionLabel === MAX_VERSION)
+		// 	versionLabel = "latest";
 
-		if (versionLabel) {
-			this.addStatusBarItem(
-				`${label}: ` + (versionLabel.length > 20 ? versionLabel.substr(0, 17) + "…" : versionLabel),
-				`${label} SDK (${isLsp ? "LSP" : "DAS"}): ${versionLabel}`,
-				switchSdkCommand,
-			);
-		}
+		// if (versionLabel) {
+		// 	this.addStatusBarItem(
+		// 		`${label}: ` + (versionLabel.length > 20 ? versionLabel.substr(0, 17) + "…" : versionLabel),
+		// 		`${label} SDK (${isLsp ? "LSP" : "DAS"}): ${versionLabel}`,
+		// 		switchSdkCommand,
+		// 	);
+		// }
 	}
 
 	private addStatusBarItem(text: string, tooltip: string, command: string | undefined) {
