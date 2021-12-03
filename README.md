@@ -1,8 +1,8 @@
 # Hetu Script VSCode extension
 
-This is the VSCode extension for Hetu Script Language:
+This is the VSCode extension for Hetu Script.
 
-A lightweight script language for embedding in Flutter. Create dynamically generated, script-driven app.
+Hetu is a lightweight script language written in Dart for embedding in Flutter apps.
 
 Homepage:
 [https://hetu.dev](https://hetu.dev)
@@ -10,6 +10,14 @@ Homepage:
 ## Features
 
 - Syntax highlight.
+- Dart class binding snippets.
+
+#### Snippets
+
+| Key press | Meaning                       |
+| --------- | ----------------------------- |
+| `extc`    | External Class Binding        |
+| `extsc`   | External Static Class Binding |
 
 ## Requirements
 
@@ -27,6 +35,10 @@ None.
 ## Known Issues
 
 ## Release Notes
+
+### 0.0.4
+
+Added Dart class binding snippets.
 
 ### 0.0.1
 
