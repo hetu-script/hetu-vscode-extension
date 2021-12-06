@@ -1,8 +1,8 @@
 # Change Log
 
-<!-- All notable changes to the "HetuScript" extension will be documented in this file. -->
+## [0.0.4]
 
-<!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
+- Added Dart class binding snippets.
 
 ## [0.0.1]
 
