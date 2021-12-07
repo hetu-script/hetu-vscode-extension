@@ -4014,7 +4014,6 @@ const analyzer_1 = __webpack_require__(/*! ../../shared/analyzer */ "./src/share
 const constants_1 = __webpack_require__(/*! ../../shared/constants */ "./src/shared/constants.ts");
 const enums_1 = __webpack_require__(/*! ../../shared/enums */ "./src/shared/enums.ts");
 const logging_1 = __webpack_require__(/*! ../../shared/logging */ "./src/shared/logging.ts");
-const config_1 = __webpack_require__(/*! ../config */ "./src/extension/config.ts");
 const misc_1 = __webpack_require__(/*! ../utils/misc */ "./src/extension/utils/misc.ts");
 const processes_1 = __webpack_require__(/*! ../utils/processes */ "./src/extension/utils/processes.ts");
 const file_tracker_lsp_1 = __webpack_require__(/*! ./file_tracker_lsp */ "./src/extension/analysis/file_tracker_lsp.ts");
@@ -4037,10 +4036,6 @@ class LspAnalyzer extends analyzer_1.Analyzer {
         });
     }
     buildMiddleware() {
-        // Why need this 🤷‍♂️?
-        function isLanguageValuePair(input) {
-            return "language" in input && typeof input.language === "string" && "value" in input && typeof input.value === "string";
-        }
         return {
             handleWorkDoneProgress: (token, params, next) => {
                 if (params.kind === "begin")
@@ -4145,10 +4140,10 @@ function createClient(logger, sdks, wsContext, middleware) {
         //   fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
         // }
         initializationOptions: {
-            // 	onlyAnalyzeProjectsWithOpenFiles: true,
-            closingLabels: config_1.config.closingLabels,
-            outline: true,
-            suggestFromUnimportedLibraries: config_1.config.autoImportCompletions,
+        // 	onlyAnalyzeProjectsWithOpenFiles: true,
+        // closingLabels: config.closingLabels,
+        // outline: true,
+        // suggestFromUnimportedLibraries: config.autoImportCompletions,
         },
         middleware,
         outputChannelName: "LSP",
@@ -5147,7 +5142,8 @@ function findRootContaining(folder, childName, expectFile = false) {
     }
     return undefined;
 }
-exports.hasDartAnalysisServer = (folder) => fs.existsSync(path.join(folder, constants_1.analyzerSnapshotPath));
+const hasDartAnalysisServer = (folder) => fs.existsSync(path.join(folder, constants_1.analyzerSnapshotPath));
+exports.hasDartAnalysisServer = hasDartAnalysisServer;
 
 
 /***/ }),
@@ -5398,13 +5394,14 @@ function pad(str, length) {
         str = "0" + str;
     return str;
 }
-exports.logTime = (taskFinished) => {
+const logTime = (taskFinished) => {
     if (!shouldLogTimings)
         return;
     const end = process.hrtime.bigint();
     console.log(`${pad((end - last).toString(), 15)} ${taskFinished ? "<== " + taskFinished : ""}`);
     last = end;
 };
+exports.logTime = logTime;
 function openLogContents(logType = `txt`, logContents, tempPath) {
     if (!tempPath)
         tempPath = path.join(os.tmpdir(), `log-${fs_1.getRandomInt(0x1000, 0x10000).toString(16)}.${logType}`);
@@ -5715,7 +5712,9 @@ exports.Analyzer = Analyzer;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.MAX_VERSION = exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.validClassNameRegex = exports.validMethodNameRegex = exports.cancelAction = exports.runFlutterCreatePrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.snapFlutterBinaryPath = exports.snapBinaryPath = exports.initializingFlutterMessage = exports.modifyingFilesOutsideWorkspaceInfoUrl = exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = exports.alwaysOpenAction = exports.openDevToolsAction = exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.FLUTTER_DOWNLOAD_URL = exports.DART_DOWNLOAD_URL = exports.androidStudioPaths = exports.analyzerSnapshotPath = exports.pubSnapshotPath = exports.flutterPath = exports.pubPath = exports.dartDocPath = exports.dartVMPath = exports.getExecutableName = exports.hetuLSPPath = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = exports.hetuscriptExtensionIdentifier = void 0;
+exports.wantToTryDevToolsPrompt = exports.issueTrackerUri = exports.issueTrackerAction = exports.stagehandInstallationInstructionsUrl = exports.pubGlobalDocsUrl = exports.debugTerminatingProgressId = exports.debugLaunchProgressId = exports.restartReasonSave = exports.restartReasonManual = exports.showLogAction = exports.stopLoggingAction = exports.IS_RUNNING_LOCALLY_CONTEXT = exports.PUB_OUTDATED_SUPPORTED_CONTEXT = exports.DART_IS_CAPTURING_LOGS_CONTEXT = exports.DART_DEP_FILE_NODE_CONTEXT = exports.DART_DEP_FOLDER_NODE_CONTEXT = exports.DART_DEP_PACKAGE_NODE_CONTEXT = exports.DART_DEP_PROJECT_NODE_CONTEXT = exports.DART_TEST_CAN_RUN_SKIPPED_CONTEXT = exports.DART_TEST_TEST_NODE_CONTEXT = exports.DART_TEST_GROUP_NODE_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_FAILURES_CONTEXT = exports.DART_TEST_CONTAINER_NODE_WITH_SKIPS_CONTEXT = exports.DART_TEST_SUITE_NODE_CONTEXT = exports.IS_LSP_CONTEXT = exports.FLUTTER_DOWNLOAD_URL = exports.DART_DOWNLOAD_URL = exports.androidStudioPaths = exports.analyzerSnapshotPath = exports.pubSnapshotPath = exports.flutterPath = exports.pubPath = exports.dartDocPath = exports.dartVMPath = exports.getExecutableName = exports.hetuLSPPath = exports.executableNames = exports.androidStudioExecutableNames = exports.platformEol = exports.platformDisplayName = exports.dartPlatformName = exports.isChromeOS = exports.isLinux = exports.isMac = exports.isWin = exports.isCI = exports.debugAdapterPath = exports.flutterExtensionIdentifier = exports.dartCodeExtensionIdentifier = exports.hetuscriptExtensionIdentifier = void 0;
+exports.cancelAction = exports.runFlutterCreatePrompt = exports.vmServiceHttpLinkPattern = exports.vmServiceListeningBannerPattern = exports.reactivateDevToolsAction = exports.openSettingsAction = exports.recommendedSettingsUrl = exports.showRecommendedSettingsAction = exports.iUnderstandAction = exports.skipAction = exports.noAction = exports.yesAction = exports.useRecommendedSettingsPromptKey = exports.installFlutterExtensionPromptKey = exports.userPromptContextPrefix = exports.debugAnywayAction = exports.showErrorsAction = exports.isInFlutterProfileModeDebugSessionContext = exports.isInFlutterDebugModeDebugSessionContext = exports.HAS_LAST_TEST_DEBUG_CONFIG = exports.HAS_LAST_DEBUG_CONFIG = exports.TRACK_WIDGET_CREATION_ENABLED = exports.REFACTOR_ANYWAY = exports.REFACTOR_FAILED_DOC_MODIFIED = exports.FLUTTER_CREATE_PROJECT_TRIGGER_FILE = exports.DART_CREATE_PROJECT_TRIGGER_FILE = exports.CHROME_OS_VM_SERVICE_PORT = exports.CHROME_OS_DEVTOOLS_PORT = exports.pleaseReportBug = exports.longRepeatPromptThreshold = exports.noRepeatPromptThreshold = exports.fortyHoursInMs = exports.twentyHoursInMs = exports.twoHoursInMs = exports.twentyMinutesInMs = exports.tenMinutesInMs = exports.fiveMinutesInMs = exports.snapFlutterBinaryPath = exports.snapBinaryPath = exports.initializingFlutterMessage = exports.modifyingFilesOutsideWorkspaceInfoUrl = exports.skipThisSurveyAction = exports.takeSurveyAction = exports.flutterSurveyAnalyticsText = exports.flutterSurveyDataUrl = exports.moreInfoAction = exports.doNotAskAgainAction = exports.notTodayAction = exports.alwaysOpenAction = exports.openDevToolsAction = void 0;
+exports.MAX_VERSION = exports.defaultLaunchJson = exports.dartRecommendedConfig = exports.validClassNameRegex = exports.validMethodNameRegex = void 0;
 const fs = __webpack_require__(/*! fs */ "fs");
 exports.hetuscriptExtensionIdentifier = "hetu-script.hetuscript";
 exports.dartCodeExtensionIdentifier = "Dart-Code.dart-code";
@@ -5739,7 +5738,8 @@ exports.executableNames = {
     pub: exports.isWin ? "pub.bat" : "pub",
 };
 exports.hetuLSPPath = "bin/ht_lsp.dill";
-exports.getExecutableName = (cmd) => { var _a; return (_a = exports.executableNames[cmd]) !== null && _a !== void 0 ? _a : cmd; };
+const getExecutableName = (cmd) => { var _a; return (_a = exports.executableNames[cmd]) !== null && _a !== void 0 ? _a : cmd; };
+exports.getExecutableName = getExecutableName;
 exports.dartVMPath = "bin/" + exports.executableNames.dart;
 exports.dartDocPath = "bin/" + exports.executableNames.dartdoc;
 exports.pubPath = "bin/" + exports.executableNames.pub;
@@ -5826,7 +5826,8 @@ exports.openSettingsAction = "Open Settings File";
 exports.reactivateDevToolsAction = "Reactivate DevTools";
 exports.vmServiceListeningBannerPattern = new RegExp("Observatory (?:listening on|.* is available at:) (http:.+)");
 exports.vmServiceHttpLinkPattern = new RegExp("(http://[\\d\\.:]+/)");
-exports.runFlutterCreatePrompt = (platformType) => `Run 'flutter create --platforms ${platformType} .' to enable support for this platform?`;
+const runFlutterCreatePrompt = (platformType) => `Run 'flutter create --platforms ${platformType} .' to enable support for this platform?`;
+exports.runFlutterCreatePrompt = runFlutterCreatePrompt;
 exports.cancelAction = "Cancel";
 exports.validMethodNameRegex = new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$");
 exports.validClassNameRegex = exports.validMethodNameRegex;

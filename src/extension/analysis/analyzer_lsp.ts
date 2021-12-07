@@ -41,11 +41,6 @@ export class LspAnalyzer extends Analyzer {
   }
 
   private buildMiddleware(): Middleware {
-    // Why need this 🤷‍♂️?
-    function isLanguageValuePair(input: any): input is { language: string; value: string } {
-      return "language" in input && typeof input.language === "string" && "value" in input && typeof input.value === "string";
-    }
-
     return {
       handleWorkDoneProgress: (token: ProgressToken, params: WorkDoneProgressBegin | WorkDoneProgressReport | WorkDoneProgressEnd, next: HandleWorkDoneProgressSignature) => {
         if (params.kind === "begin")
@@ -155,9 +150,9 @@ function createClient(logger: Logger, sdks: DartSdks, wsContext: WorkspaceContex
     // }
     initializationOptions: {
       // 	onlyAnalyzeProjectsWithOpenFiles: true,
-      closingLabels: config.closingLabels,
-      outline: true,
-      suggestFromUnimportedLibraries: config.autoImportCompletions,
+      // closingLabels: config.closingLabels,
+      // outline: true,
+      // suggestFromUnimportedLibraries: config.autoImportCompletions,
     },
     middleware,
     outputChannelName: "LSP",

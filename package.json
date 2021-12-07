@@ -43,13 +43,6 @@
         ],
         "configuration": "./syntaxes/hetu.language.configuration.json"
       }
-    ],
-    "grammars": [
-      {
-        "language": "hetu",
-        "scopeName": "source.hetu",
-        "path": "./syntaxes/hetu.tmLanguage.json"
-      }
     ]
   },
   "repository": {
