@@ -141,7 +141,7 @@
     },
     "function-declaration": {
       "name": "meta.function.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(fun|get|set|finalruct\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(fun|get|set|construct\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
       "beginCaptures": {
         "1": {
           "name": "storage.modifier.hetu"
