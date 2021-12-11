@@ -22,7 +22,7 @@
           "include": "#punctuation-semicolon"
         },
         {
-          "include": "#function-decl-block"
+          "include": "#decl-block"
         }
       ]
     },
@@ -87,7 +87,7 @@
           "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(else|if)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))"
         },
         {
-          "include": "#function-decl-block"
+          "include": "#decl-block"
         }
       ]
     },
@@ -191,7 +191,7 @@
           "include": "#function-return-type"
         },
         {
-          "include": "#function-decl-block"
+          "include": "#decl-block"
         }
       ]
     },
@@ -227,7 +227,7 @@
           "include": "#class-with"
         },
         {
-          "include": "#class-decl-block"
+          "include": "#class-definition"
         }
       ]
     },
@@ -316,7 +316,7 @@
         }
       ]
     },
-    "class-decl-block": {
+    "class-definition": {
       "begin": "\\{",
       "beginCaptures": {
         "0": {
@@ -653,25 +653,14 @@
           "end": "(?=\\})",
           "patterns": [
             {
-              "name": "case-clause.expr.hetu",
-              "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(else(?=:))(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
-              "beginCaptures": {
-                "1": {
-                  "name": "keyword.control.switch.hetu"
-                }
-              },
-              "end": "(?=:)",
-              "patterns": [
-                {
-                  "include": "#expression"
-                }
-              ]
+              "include": "#comment"
             },
             {
-              "include": "#expression"
+              "name": "keyword.control.switch.hetu keyword.control.conditional.hetu",
+              "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(else)\\s*(?=->)"
             },
             {
-              "begin": "(:)\\s*(\\{)",
+              "begin": "(->)\\s*(\\{)",
               "beginCaptures": {
                 "1": {
                   "name": "case-clause.expr.hetu punctuation.definition.section.case-statement.hetu"
@@ -694,12 +683,15 @@
               ]
             },
             {
-              "match": "(:)",
+              "match": "(->)",
               "captures": {
                 "0": {
                   "name": "case-clause.expr.hetu punctuation.definition.section.case-statement.hetu"
                 }
               }
+            },
+            {
+              "include": "#expression"
             }
           ]
         }
@@ -752,6 +744,9 @@
         },
         {
           "include": "#string"
+        },
+        {
+          "include": "#function-literal"
         }
       ]
     },
@@ -804,12 +799,9 @@
           "include": "#comment"
         },
         {
-          "include": "#object-literal-method-declaration"
-        },
-        {
-          "name": "meta.object.member.hetu meta.object-literal.key.hetu",
-          "begin": "(?=[\\'\\\"\\`])",
-          "end": "(?=:)|((?<=[\\'\\\"\\`])(?=((\\s*[\\(\\<,}])|(\\s+(as)\\s+))))",
+          "name": "meta.object-literal.key.hetu",
+          "begin": "(?<!:\\s*)(?=[\\'\\\"\\`])",
+          "end": "(?=:)|((?<=[\\'\\\"\\`])(?=((\\s*[\\(\\<,}]))))",
           "patterns": [
             {
               "include": "#comment"
@@ -820,13 +812,9 @@
           ]
         },
         {
-          "name": "meta.object.member.hetu",
-          "match": "(?:[_$[:alpha:]][_$[:alnum:]]*)\\s*(?=(\\/\\*([^\\*]|(\\*[^\\/]))*\\*\\/\\s*)*:)",
-          "captures": {
-            "0": {
-              "name": "meta.object-literal.key.hetu"
-            }
-          }
+          "name": "meta.object-literal.key.hetu",
+          "begin": "(?:[_$[:alpha:]][_$[:alnum:]]*)\\s*(?=(\\/\\*([^\\*]|(\\*[^\\/]))*\\*\\/\\s*)*)",
+          "end": "(?=:|,)"
         },
         {
           "name": "meta.object.member.hetu",
@@ -845,8 +833,8 @@
         },
         {
           "name": "meta.object.member.hetu",
-          "begin": "(?=[_$[:alpha:]][_$[:alnum:]]*\\s*=)",
-          "end": "(?=,|\\}|$|\\/\\/|\\/\\*)",
+          "begin": ":",
+          "end": "(?=,|\\})",
           "patterns": [
             {
               "include": "#expression"
@@ -874,6 +862,30 @@
       "patterns": [
         {
           "include": "#expression"
+        }
+      ]
+    },
+    "function-literal": {
+      "patterns": [
+        {
+          "name": "meta.block.hetu",
+          "begin": "((?<=\\))\\s*)\\{",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.block.hetu"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.block.hetu"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#statements"
+            }
+          ]
         }
       ]
     },
@@ -1098,7 +1110,7 @@
         }
       ]
     },
-    "function-decl-block": {
+    "decl-block": {
       "name": "meta.block.hetu",
       "begin": "\\{",
       "beginCaptures": {
@@ -1117,6 +1129,10 @@
           "include": "#statements"
         }
       ]
+    },
+    "punctuation-colon": {
+      "name": "punctuation.separator.colon.hetu",
+      "match": ":"
     },
     "punctuation-comma": {
       "name": "punctuation.separator.comma.hetu",
