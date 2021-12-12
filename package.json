@@ -2,7 +2,7 @@
   "name": "hetuscript",
   "displayName": "HetuScript",
   "description": "VSCode extension for Hetu Script Language.",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "icon": "media/image/hetu-logo-large.png",
   "publisher": "hetu-script",
   "homepage": "https://hetu.dev",

@@ -13,6 +13,9 @@
           "include": "#declaration"
         },
         {
+          "include": "#assert-statement"
+        },
+        {
           "include": "#control-statement"
         },
         {
@@ -45,6 +48,24 @@
         }
       ]
     },
+    "assert-statement": {
+      "patterns": [
+        {
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(assert)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.control.assert.hetu"
+            }
+          },
+          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|//",
+          "patterns": [
+            {
+              "include": "#expression"
+            }
+          ]
+        }
+      ]
+    },
     "control-statement": {
       "patterns": [
         {
@@ -72,7 +93,7 @@
               "name": "keyword.control.flow.hetu"
             }
           },
-          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|//",
+          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|//",
           "patterns": [
             {
               "include": "#expression"
@@ -159,7 +180,7 @@
           "name": "meta.definition.function.hetu entity.name.function.hetu"
         }
       },
-      "end": "(?=;|^\\s*$|(?:^\\s*(?:abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|(?<=\\})",
+      "end": "(?=;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|(?<=\\})",
       "patterns": [
         {
           "include": "#function-name"
@@ -189,6 +210,9 @@
         },
         {
           "include": "#function-return-type"
+        },
+        {
+          "include": "#single-line-comment-consuming-line-ending"
         },
         {
           "include": "#decl-block"
@@ -347,7 +371,7 @@
     "variable-declaration": {
       "name": "meta.var.expr.hetu",
       "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
-      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?\\b(var|final)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|((?<!^[^\\._$[:alnum:]]^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
+      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?\\b(var|final)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|((?<!^[^\\._$[:alnum:]]^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
       "patterns": [
         {
           "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
@@ -371,24 +395,7 @@
           "include": "#variable-initializer"
         },
         {
-          "begin": "(,)\\s*((?!\\S)|(?=\\/\\/))",
-          "beginCaptures": {
-            "1": {
-              "name": "punctuation.separator.comma.hetu"
-            }
-          },
-          "end": "(?<!,)(((?==|;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(in)\\s+)|^\\s*$))|((?<=\\S)(?=\\s*$)))",
-          "patterns": [
-            {
-              "include": "#var-single-variable"
-            },
-            {
-              "include": "#punctuation-comma"
-            }
-          ]
-        },
-        {
-          "include": "#punctuation-comma"
+          "include": "#single-line-comment-consuming-line-ending"
         }
       ]
     },
@@ -441,6 +448,9 @@
       },
       "end": "(?<!^import|[^\\._$[:alnum:]]import)(?=;|$|^)",
       "patterns": [
+        {
+          "include": "#single-line-comment-consuming-line-ending"
+        },
         {
           "include": "#comment"
         },
@@ -518,7 +528,7 @@
           "name": "storage.modifier.hetu"
         }
       },
-      "end": "(?=(\\bshow)\\s+)|(?=;|^\\s*$|(?:^\\s*(?:as|abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|(?<=\\})",
+      "end": "(?=(\\bshow)\\s+)|(?=;|^\\s*$|(?:^\\s*(?:as|assert|abstract|async|class|final|enum|export|construct|get|set|fun|import|return|var)\\b))|(?<=\\})",
       "patterns": [
         {
           "include": "#type-name"
@@ -716,6 +726,9 @@
         },
         {
           "include": "#identifiers"
+        },
+        {
+          "include": "#single-line-comment-consuming-line-ending"
         }
       ]
     },
@@ -1170,6 +1183,19 @@
           "contentName": "comment.line.double-slash.hetu"
         }
       ]
+    },
+    "single-line-comment-consuming-line-ending": {
+      "begin": "(^[ \\t]+)?((//)(?:\\s*)?)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.whitespace.comment.leading.js"
+        },
+        "2": {
+          "name": "comment.line.double-slash.js"
+        }
+      },
+      "end": "(?=^)",
+      "contentName": "comment.line.double-slash.js"
     },
     "type": {
       "patterns": [
