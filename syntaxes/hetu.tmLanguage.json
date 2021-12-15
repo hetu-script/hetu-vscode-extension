@@ -165,7 +165,7 @@
     },
     "function-declaration": {
       "name": "meta.function.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(fun|get|set|construct\\b)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(fun|get|set|construct)\\b([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
       "beginCaptures": {
         "1": {
           "name": "storage.modifier.hetu"
@@ -221,7 +221,7 @@
     },
     "class-declaration": {
       "name": "meta.class.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\babstract)\\s+)?(class|struct\\b)\\s+([_$[:alpha:]][_$[:alnum:]]*)",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\babstract)\\s+)?(class|struct)\\b\\s+([_$[:alpha:]][_$[:alnum:]]*)",
       "beginCaptures": {
         "1": {
           "name": "storage.modifier.hetu"
@@ -370,11 +370,11 @@
     },
     "variable-declaration": {
       "name": "meta.var.expr.hetu",
-      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
-      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?\\b(var|final|const)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|var|final|const|enum|export|construct|get|set|fun|import|return)\\b))|((?<!^[^\\._$[:alnum:]]^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
+      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
+      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|var|final|const|enum|export|construct|get|set|fun|import|return)\\b))|((?<!^[^\\._$[:alnum:]]^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
       "patterns": [
         {
-          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
           "beginCaptures": {
             "1": {
               "name": "storage.modifier.hetu"
@@ -550,11 +550,11 @@
       ]
     },
     "if-statement": {
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?=\\b(?:\\s+(else))?if\\s*(\\(([^\\(\\)]|(\\(([^\\(\\)]|\\([^\\(\\)]*\\))*\\)))*\\))\\s*(?!\\{))",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?=\\b(?:\\s+(else\\b))?if\\s*(\\(([^\\(\\)]|(\\(([^\\(\\)]|\\([^\\(\\)]*\\))*\\)))*\\))\\s*(?!\\{))",
       "end": "(?=;|$|\\})",
       "patterns": [
         {
-          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))((?:\\s+(else))?if)\\s*(\\()",
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))((?:\\s+(else\\b))?if)\\s*(\\()",
           "beginCaptures": {
             "1": {
               "name": "keyword.control.conditional.hetu"
@@ -618,7 +618,7 @@
     },
     "when-statement": {
       "name": "switch-statement.expr.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?=\\bwhen\\s*\\()",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?=\\bwhen\\b\\s*\\()",
       "end": "\\}",
       "endCaptures": {
         "0": {
