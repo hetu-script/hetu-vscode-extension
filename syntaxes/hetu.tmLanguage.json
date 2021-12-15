@@ -221,7 +221,7 @@
     },
     "class-declaration": {
       "name": "meta.class.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\babstract)\\s+)?(class|struct\\b)\\s+([_$[:alpha:]][_$[:alnum:]]*)",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\babstract)\\s+)?(class|struct|namespace)\\s+([_$[:alpha:]][_$[:alnum:]]*)",
       "beginCaptures": {
         "1": {
           "name": "storage.modifier.hetu"
