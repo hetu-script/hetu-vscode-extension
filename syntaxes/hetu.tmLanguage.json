@@ -57,7 +57,7 @@
               "name": "keyword.control.assert.hetu"
             }
           },
-          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|var|final|const|enum|export|construct|get|set|fun|import|return)\\b))|//",
+          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|//",
           "patterns": [
             {
               "include": "#expression"
@@ -93,7 +93,7 @@
               "name": "keyword.control.flow.hetu"
             }
           },
-          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|var|final|const|enum|export|construct|get|set|fun|import|return)\\b))|//",
+          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|//",
           "patterns": [
             {
               "include": "#expression"
@@ -180,7 +180,7 @@
           "name": "meta.definition.function.hetu entity.name.function.hetu"
         }
       },
-      "end": "(?=;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|var|final|const|enum|export|construct|get|set|fun|import|return)\\b))|(?<=\\})",
+      "end": "(?=;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|(?<=\\})",
       "patterns": [
         {
           "include": "#function-name"
@@ -370,11 +370,11 @@
     },
     "variable-declaration": {
       "name": "meta.var.expr.hetu",
-      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
-      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|var|final|const|enum|export|construct|get|set|fun|import|return)\\b))|((?<!^[^\\._$[:alnum:]]^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
+      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
+      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|((?<!^[^\\._$[:alnum:]]^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
       "patterns": [
         {
-          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(var|final|const)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
           "beginCaptures": {
             "1": {
               "name": "storage.modifier.hetu"
@@ -383,6 +383,9 @@
               "name": "storage.modifier.hetu"
             },
             "3": {
+              "name": "storage.modifier.hetu"
+            },
+            "4": {
               "name": "storage.type.hetu"
             }
           },
@@ -528,7 +531,7 @@
           "name": "storage.modifier.hetu"
         }
       },
-      "end": "(?=(\\bshow)\\s+)|(?=;|^\\s*$|(?:^\\s*(?:as|assert|abstract|async|class|var|final|const|enum|export|construct|get|set|fun|import|return)\\b))|(?<=\\})",
+      "end": "(?=(\\bshow)\\s+)|(?=;|^\\s*$|(?:^\\s*(?:as|assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|(?<=\\})",
       "patterns": [
         {
           "include": "#type-name"
@@ -827,7 +830,7 @@
         {
           "name": "meta.object-literal.key.hetu",
           "begin": "(?:[_$[:alpha:]][_$[:alnum:]]*)\\s*(?=(\\/\\*([^\\*]|(\\*[^\\/]))*\\*\\/\\s*)*)",
-          "end": "(?=:|,)"
+          "end": "(?=:|,|})"
         },
         {
           "name": "meta.object.member.hetu",
