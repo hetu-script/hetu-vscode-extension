@@ -57,7 +57,7 @@
               "name": "keyword.control.assert.hetu"
             }
           },
-          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|//",
+          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|let|final|const|type|enum|export|constructor|construct|factory|get|set|function|fun|import|return|throw)\\b))|//",
           "patterns": [
             {
               "include": "#expression"
@@ -69,7 +69,7 @@
     "control-statement": {
       "patterns": [
         {
-          "include": "#when-statement"
+          "include": "#switch-statement"
         },
         {
           "include": "#for-loop"
@@ -87,13 +87,13 @@
           "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(break|continue|do|while)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))"
         },
         {
-          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(return)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(return|throw)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
           "beginCaptures": {
             "0": {
               "name": "keyword.control.flow.hetu"
             }
           },
-          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|//",
+          "end": "(?=[;}]|$|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|let|final|const|type|enum|export|constructor|construct|factory|get|set|function|fun|import|return|throw)\\b))|//",
           "patterns": [
             {
               "include": "#expression"
@@ -165,7 +165,7 @@
     },
     "function-declaration": {
       "name": "meta.function.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(fun|get|set|construct)\\b([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(?:(async)\\s+)?(function|fun|get|set|constructor|construct)([_$[:alpha:]][_$[:alnum:]]*)*\\s*",
       "beginCaptures": {
         "1": {
           "name": "storage.modifier.hetu"
@@ -173,14 +173,17 @@
         "2": {
           "name": "storage.modifier.hetu"
         },
-        "3": {
+				"3": {
+					"name": "storage.modifier.async.hetu"
+				},
+        "4": {
           "name": "storage.type.function.hetu"
         },
-        "4": {
+        "5": {
           "name": "meta.definition.function.hetu entity.name.function.hetu"
         }
       },
-      "end": "(?=;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|(?<=\\})",
+      "end": "(?=;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|let|final|const|type|enum|export|constructor|construct|factory|get|set|function|fun|import|return|throw)\\b))|(?<=\\})",
       "patterns": [
         {
           "include": "#function-name"
@@ -370,11 +373,11 @@
     },
     "variable-declaration": {
       "name": "meta.var.expr.hetu",
-      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
-      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|((?<!^[^\\._$[:alnum:]]^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
+      "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|let|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
+      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|let|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|in|of|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|let|final|const|type|enum|export|constructor|construct|factory|get|set|function|fun|import|return|throw)\\b))|((?<!^[^\\._$[:alnum:]]^var|let|[^\\._$[:alnum:]]var)(?=\\s*$)))",
       "patterns": [
         {
-          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|let|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
           "beginCaptures": {
             "1": {
               "name": "storage.modifier.hetu"
@@ -531,7 +534,7 @@
           "name": "storage.modifier.hetu"
         }
       },
-      "end": "(?=(\\bshow)\\s+)|(?=;|^\\s*$|(?:^\\s*(?:as|assert|abstract|async|class|late|var|final|const|type|enum|export|construct|get|set|fun|import|return)\\b))|(?<=\\})",
+      "end": "(?=(\\bshow)\\s+)|(?=;|^\\s*$|(?:^\\s*(?:as|assert|abstract|async|class|late|var|let|final|const|type|enum|export|constructor|construct|factory|get|set|function|fun|import|return|throw)\\b))|(?<=\\})",
       "patterns": [
         {
           "include": "#type-name"
@@ -619,9 +622,9 @@
         }
       ]
     },
-    "when-statement": {
+    "switch-statement": {
       "name": "switch-statement.expr.hetu",
-      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?=\\bwhen\\b\\s*\\()",
+      "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?=\\b(switch|when)\\b\\s*\\()",
       "end": "\\}",
       "endCaptures": {
         "0": {
@@ -634,7 +637,7 @@
         },
         {
           "name": "switch-expression.expr.hetu",
-          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(when)\\s*(\\()",
+          "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(switch|when)\\s*(\\()",
           "beginCaptures": {
             "1": {
               "name": "keyword.control.switch.hetu"
@@ -668,9 +671,24 @@
             {
               "include": "#comment"
             },
+						{
+							"name": "case-clause.expr.hetu",
+							"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(case|default(?=:|=>))(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
+							"beginCaptures": {
+								"1": {
+									"name": "keyword.control.switch.hetu"
+								}
+							},
+							"end": "(?=:|=>)",
+							"patterns": [
+								{
+									"include": "#expression"
+								}
+							]
+						},
             {
               "name": "keyword.control.switch.hetu keyword.control.conditional.hetu",
-              "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(else)\\s*(?=->)"
+              "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(else|default)\\s*(?=:|=>)"
             },
             {
               "begin": "(->)\\s*(\\{)",
@@ -696,7 +714,7 @@
               ]
             },
             {
-              "match": "(->)",
+              "match": "(=>|:)",
               "captures": {
                 "0": {
                   "name": "case-clause.expr.hetu punctuation.definition.section.case-statement.hetu"
@@ -724,6 +742,12 @@
         {
           "include": "#paren-expression"
         },
+				{
+					"include": "#ternary-expression"
+				},
+				{
+					"include": "#new-expr"
+				},
         {
           "include": "#function-call"
         },
@@ -881,6 +905,21 @@
         }
       ]
     },
+		"new-expr": {
+			"name": "new.expr.hetu",
+			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(new)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.operator.new.hetu"
+				}
+			},
+			"end": "(?<=\\))|(?=[;),}\\]:?\\-\\+\\>]|\\|\\||\\&\\&|\\!\\=\\=|$|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))new(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))function((\\s+[_$[:alpha:]][_$[:alnum:]]*)|(\\s*[\\(]))))",
+			"patterns": [
+				{
+					"include": "#expression"
+				}
+			]
+		},
     "function-literal": {
       "patterns": [
         {
@@ -1281,12 +1320,8 @@
     "expression-operators": {
       "patterns": [
         {
-          "name": "keyword.operator.expression.await.hetu",
-          "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(await)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))"
-        },
-        {
-          "name": "keyword.operator.expression.delete.hetu",
-          "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(delete)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))"
+          "name": "keyword.operator.expression.keywords.hetu",
+          "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(await|delete|typeof|decltypeof|typeval|instanceof)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))"
         },
         {
           "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(as)\\s+",
