@@ -2,7 +2,7 @@
   "name": "hetuscript",
   "displayName": "HetuScript",
   "description": "VSCode extension for Hetu Script Language.",
-  "version": "0.0.16",
+  "version": "0.0.18",
   "icon": "media/image/hetu-logo-large.png",
   "publisher": "hetu-script",
   "homepage": "https://hetu.dev",
@@ -57,21 +57,21 @@
     "url": "https://github.com/hetu-script/hetu-vscode-extension"
   },
   "scripts": {
+    "package": "pnpm vsce package --no-dependencies",
+    "publish": "pnpm vsce publish --no-dependencies",
     "build": "webpack --mode development",
     "dev": "webpack --mode development --watch"
   },
-  "dependencies": {
-    "semver": "^7.3.5"
-  },
   "devDependencies": {
-    "@types/node": "^14.14.37",
-    "@types/semver": "^7.3.4",
-    "ts-loader": "^8.1.0",
+    "@types/node": "^14.18.63",
+    "@types/semver": "^7.5.8",
+    "ts-loader": "^8.4.0",
+    "vsce": "^2.15.0",
     "vscode": "^1.1.37",
-    "vscode-debugadapter": "^1.46.0",
-    "vscode-debugprotocol": "^1.46.0",
+    "vscode-debugadapter": "^1.51.0",
+    "vscode-debugprotocol": "^1.51.0",
     "vscode-languageclient": "^7.0.0",
-    "webpack": "^5.31.2",
-    "webpack-cli": "^4.6.0"
+    "webpack": "^5.90.3",
+    "webpack-cli": "^4.10.0"
   }
 }
