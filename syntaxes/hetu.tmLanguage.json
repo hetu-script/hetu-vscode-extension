@@ -357,7 +357,7 @@
     "variable-declaration": {
       "name": "meta.var.expr.hetu",
       "begin": "(?=(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|let|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))",
-      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|let|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\s+)|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|let|final|const|type|enum|export|constructor|construct|factory|get|set|function|fun|import|return|throw)\\b))|((?<!^[^\\._$[:alnum:]]^var|let|[^\\._$[:alnum:]]var)(?=\\s*$)))",
+      "end": "(?!(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?\\b(late|var|let|final|const|type)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.)))((?=;|}|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(of|in)\\s+)|;|^\\s*$|(?:^\\s*(?:assert|abstract|async|class|late|var|let|final|const|type|enum|export|constructor|construct|factory|get|set|function|fun|import|return|throw|namespace)\\b))|((?<!^let|[^\\._$[:alnum:]]let|^var|[^\\._$[:alnum:]]var)(?=\\s*$)))",
       "patterns": [
         {
           "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexternal)\\s+)?(?:(\\bstatic)\\s+)?(late|var|let|final|const|type)\\b(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))\\s*",
@@ -394,9 +394,6 @@
       "beginCaptures": {
         "1": {
           "name": "meta.definition.variable.hetu variable.other.readwrite.hetu"
-        },
-        "2": {
-          "name": "keyword.operator.definiteassignment.hetu"
         }
       },
       "end": "(?=$|^|[;,=}]|((?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(of|in)\\s+))",
@@ -1321,7 +1318,16 @@
           ]
         },
         {
-          "include": "#in-of-expression"
+          "name": "keyword.operator.expression.delete.ts",
+          "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))delete(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))"
+        },
+        {
+          "name": "keyword.operator.expression.in.ts",
+          "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))in(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))(?!\\()"
+        },
+        {
+          "name": "keyword.operator.expression.of.ts",
+          "match": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))of(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))(?!\\()"
         },
         {
           "begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(is)\\s+",
